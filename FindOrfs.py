@@ -56,17 +56,18 @@ def orf_finder(sequence,startphase,stopphase,strand,expected_aa_len,length_varia
     for match_coords in phase_matches:
         start = match_coords[0] + len(startstop[0]) 
         stop = match_coords[1] - len(startstop[1])
-        if not "*" in genome.Sequence(search_seq[start + ((3 - startphase) % 3) : stop ]).translate():
-            #NB: returns 1-based coords consistent with gff and blast coords
-            exon_coords.append([start + 1,stop])
-            if is_start:
-                exon_coords[-1][0] = exon_coords[-1][0] - 3
-            if is_stop:
-                exon_coords[-1][1] = exon_coords[-1][1] + 3
-            if strand == '-':
-                exon_coords[-1] = [len(search_seq) - exon_coords[-1][1] + 1,len(search_seq) - exon_coords[-1][0] + 1]
-            if search_coords:
-                exon_coords[-1] = [exon_coords[-1][0] + search_coords[0],exon_coords[-1][1] + search_coords[0]]
+        if stop - (start + ((3 - startphase) % 3)) > 2:
+            if not "*" in genome.Sequence(search_seq[start + ((3 - startphase) % 3) : stop ]).translate():
+                #NB: returns 1-based coords consistent with gff and blast coords
+                exon_coords.append([start + 1,stop])
+                if is_start:
+                    exon_coords[-1][0] = exon_coords[-1][0] - 3
+                if is_stop:
+                    exon_coords[-1][1] = exon_coords[-1][1] + 3
+                if strand == '-':
+                    exon_coords[-1] = [len(search_seq) - exon_coords[-1][1] + 1,len(search_seq) - exon_coords[-1][0] + 1]
+                if search_coords:
+                    exon_coords[-1] = [exon_coords[-1][0] + search_coords[0],exon_coords[-1][1] + search_coords[0]]     
     if hmm_profile and len(exon_coords) > 0:
         exon_coords = hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase)
     return exon_coords

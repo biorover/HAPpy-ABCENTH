@@ -188,7 +188,7 @@ for file_name in exon_pep_files:
         print "Copying " + file_name
         subprocess.call('cp tmpOrAnPipeHMMs/' + file_name + ' tmpOrAnPipeHMMs/' + file_name[:-3] + ".mafftGinsi.fa", shell = True)
     try:
-        query_len = subprocess.check_output(hmmbuild + " tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm tmpOrAnPipeHMMs/" +  file_name[:-3] + ".mafftGinsi.fa", shell = True).split('\n')[11].split()[4]
+        query_len = subprocess.check_output(hmmbuild + " --amino tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm tmpOrAnPipeHMMs/" +  file_name[:-3] + ".mafftGinsi.fa", shell = True).split('\n')[11].split()[4]
     except subprocess.CalledProcessError:
         print "Hm, problem with hmmbuild for file " + file_name
     gene_cluster = file_name.split('exon')[0]
@@ -207,7 +207,7 @@ for file_name in exon_pep_files:
     for cmd in running_commands:
         if cmd.poll() == None:
             ongoing_commands_count = ongoing_commands_count + 1
-    while ongoing_commands_count >= args.threads:
+    while ongoing_commands_count >= args.threads / 3:
         time.sleep(5)
         ongoing_commands_count = 0
         for cmd in running_commands:

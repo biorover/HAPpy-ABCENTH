@@ -50,7 +50,7 @@ coords_dict = {}
 for hit in sort_list:
     fields = hit[1]
     start, stop = min(int(fields[coord1]), int(fields[coord2])),max(int(fields[coord1]), int(fields[coord2]))
-    if args.input_type == "blast-tab":
+    if args.input_type == "blast_table":
         locus = fields[1]
     elif args.input_type == "gtf":
         locus = fields[0]

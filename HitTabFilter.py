@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser(description='Selects best non-overlapping hits 
                                  (e.g. from tblastn), based on score or evalue')
 
 parser.add_argument('--table',help = 'table of hits')
-parser.add_argument('--sep', default = 'comma', help = 'table field delimiter, accepts "comma" and "tab" (default = comma')
+parser.add_argument('--sep', default = 'tab', help = 'table field delimiter, accepts "comma" and "tab" (default = tab')
 parser.add_argument('--sortby',default = 'evalue', help = 'Criterion for "best" hit, accepts "evalue" \
                     (assumed to be field 11, minimizes) or "score" (assumed to be field 12, maximizes)')
 parser.add_argument('--input_type', default = "blast_table", help = 'input file type- accepts "blast_table" (default) or \

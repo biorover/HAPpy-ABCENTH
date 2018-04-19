@@ -57,11 +57,17 @@ parser.add_argument('--buffer', dest = 'buffer', default = 500,
 
 parser.add_argument('--evalue', default = 0.05, type = float, help = 'Evalue cutoff for thammerin')
 
+parser.add_argument('--genome_orfs', default = None, help = 'ORFs file from previous thammerin run (saves about five minutes for insect-sized genomes)')
+
 args = parser.parse_args()
 
 
 #sets up some basic variables
 dthresh = args.distance_cutoff
+if genome_orfs in args:
+    thammerin_orfs = os.path.abspath(args.genome_orfs)
+else:
+    thammerin_orfs = 'tmpOrAnPipeFrames.fa'
 
 #sets up default program paths, overwritten by any program paths passes with -f or --program_filepaths
 hmmsearch = "hmmsearch"
@@ -180,26 +186,29 @@ for cluster_index in range(len(clusters)):
 running_commands = [] #for multithreading
 
 exon_pep_files = os.listdir("tmpOrAnPipeHMMs/")
+
 for file_name in exon_pep_files:
     if open("tmpOrAnPipeHMMs/" + file_name).read().count('>') > 1:
         print "Aligning " + file_name
         subprocess.call("mafft --globalpair --maxiterate 1000 tmpOrAnPipeHMMs/" + file_name + " > tmpOrAnPipeHMMs/"+ file_name[:-3] + ".mafftGinsi.fa 2> tmp.tmp" , shell = True)
+        hmmer_input = file_name[:-3] + ".mafftGinsi.fa"
     else:
-        print "Copying " + file_name
-        subprocess.call('cp tmpOrAnPipeHMMs/' + file_name + ' tmpOrAnPipeHMMs/' + file_name[:-3] + ".mafftGinsi.fa", shell = True)
+        print "Passing along " + file_name
+        hmmer_input = file_name
     try:
-        query_len = subprocess.check_output(hmmbuild + " --amino tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm tmpOrAnPipeHMMs/" +  file_name[:-3] + ".mafftGinsi.fa", shell = True).split('\n')[11].split()[4]
+        query_len = subprocess.check_output(hmmbuild + " --amino tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm tmpOrAnPipeHMMs/" +  hmmer_input, shell = True).split('\n')[12].split()[4]
     except subprocess.CalledProcessError:
         print "Hm, problem with hmmbuild for file " + file_name
     gene_cluster = file_name.split('exon')[0]
     subprocess.call("sed -i -e 's/mafftGinsi/___" + gene_cluster + "_len_" + query_len + "/g' tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm", shell = True)
+    
     if not args.thammerin_results:
-        if not "tmpOrAnPipeFrames.fa" in os.listdir('./'):
+        if not "tmpOrAnPipeFrames.fa" in os.listdir('./') and not genome_orfs in args:
             running_commands.append(subprocess.Popen(thammerin + " --frames_out tmpOrAnPipeFrames.fa -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm -n " + target_genome + ' > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab', shell = True))
             for command in running_commands:
                 command.wait()
         else:
-            running_commands.append(subprocess.Popen(thammerin + " --frames_in tmpOrAnPipeFrames.fa -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + '.hmm > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab', shell = True))
+            running_commands.append(subprocess.Popen(thammerin + " --frames_in " + thammerin_orfs + " -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + '.hmm > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab', shell = True))
     #debug
         print "Running " + thammerin + " -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm -n " + target_genome
     #/debug

@@ -179,6 +179,7 @@ for cluster_index in range(len(clusters)):
                     CDS_id = sortlist[CDS_index][1]
                     phase_slice_offset = (3 - exon_phases[CDS_index][0]) % 3
                     cds_out.write(">" + transcript_id + "-" + str(CDS_index) + '\n' + genome.Sequence(ref_genome.annotations.CDS[CDS_id].get_seq()[phase_slice_offset:]).translate() + '\n')
+                    cds_out.close()
                 lengths_dict[cluster_index] = exon_lengths[:]
             except KeyError:
                 pass
@@ -191,12 +192,11 @@ for file_name in exon_pep_files:
     if open("tmpOrAnPipeHMMs/" + file_name).read().count('>') > 1:
         print "Aligning " + file_name
         subprocess.call("mafft --globalpair --maxiterate 1000 tmpOrAnPipeHMMs/" + file_name + " > tmpOrAnPipeHMMs/"+ file_name[:-3] + ".mafftGinsi.fa 2> tmp.tmp" , shell = True)
-        hmmer_input = file_name[:-3] + ".mafftGinsi.fa"
     else:
-        print "Passing along " + file_name
-        hmmer_input = file_name
+        print "Copying " + file_name
+        subprocess.call('cp tmpOrAnPipeHMMs/' + file_name + ' tmpOrAnPipeHMMs/' + file_name[:-3] + ".mafftGinsi.fa", shell = True)
     try:
-        query_len = subprocess.check_output(hmmbuild + " --amino tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm tmpOrAnPipeHMMs/" +  hmmer_input, shell = True).split('\n')[12].split()[4]
+        query_len = subprocess.check_output(hmmbuild + " --amino tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm tmpOrAnPipeHMMs/" + file_name[:-3] + ".mafftGinsi.fa", shell = True).split('\n')[12].split()[4]
     except subprocess.CalledProcessError:
         print "Hm, problem with hmmbuild for file " + file_name
     gene_cluster = file_name.split('exon')[0]

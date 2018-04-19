@@ -30,12 +30,12 @@ parser.add_argument('--maxintron', type = int, default = 100000, help = 'Maximum
 
 parser.add_argument('--query_exon_info_table', help = 'Information about each query exon (for finding missing exons)')
 
-parser.add_argument('--log', help = "file to write a log for debugging (optional)")
+parser.add_argument('--log', default = None, help = "file to write a log for debugging (optional)")
 
 args = parser.parse_args()
 
 
-if "log" in args:
+if args.log:
     log_file = open(args.log,'w')
 
 if args.sep == "comma":
@@ -195,7 +195,7 @@ def recover_missing_exon(strand,cluster,exon_number,is_start,is_stop, search_coo
         missing_coords = orf_finder(target_genome.genome_sequence[locus],int(missing_exon_info[3]),
                                              int(missing_exon_info[4]),strand, int(missing_exon_info[5]),4, search_coords,
                                              is_stop = is_stop,is_start = is_start,hmm_profile = missing_exon_info[6])
-    if "log" in args:
+    if args.log:
         log_file.write(locus + '\t' + str(tstart) + '\t' + str(cluster) + '\t' + str(exon_number) + '\t' + str(search_coords) + '\t' + str(missing_coords) + '\n')
     if missing_coords != []:
         working_annotation.append(missing_coords + [False])
@@ -211,7 +211,7 @@ def last_annotation_almost_complete():
         is_start,is_stop = False,True
     recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],eval(str(last_exon_num) + last_strand + "1"),is_start,is_stop,[max((last_tend,last_tstart)),min(max((last_tend,last_tstart)) + 2000,min((tstart,tend)))])
     if last_strand == '-' and last_startphase != 0 and not recovered:
-        working_annotation[-1][1] = working_annotation[-1][1] - ((3 - phase) % 3)
+        working_annotation[-1][1] = working_annotation[-1][1] - ((3 - last_startphase) % 3)
         working_annotation[-1][2] = 'True'
     print exontuples2gff(working_annotation, strand,working_name[0],locus)
 

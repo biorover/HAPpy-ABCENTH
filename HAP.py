@@ -203,7 +203,7 @@ for file_name in exon_pep_files:
     subprocess.call("sed -i -e 's/mafftGinsi/___" + gene_cluster + "_len_" + query_len + "/g' tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm", shell = True)
     
     if not args.thammerin_results:
-        if not "tmpOrAnPipeFrames.fa" in os.listdir('./') and not "genome_orfs" in args:
+        if not "tmpOrAnPipeFrames.fa" in os.listdir('./') and not args.genome_orfs:
             running_commands.append(subprocess.Popen(thammerin + " --frames_out tmpOrAnPipeFrames.fa -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm -n " + target_genome + ' > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab', shell = True))
             for command in running_commands:
                 command.wait()

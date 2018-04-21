@@ -64,7 +64,7 @@ args = parser.parse_args()
 
 #sets up some basic variables
 dthresh = args.distance_cutoff
-if "genome_orfs" in args:
+if args.genome_orfs:
     thammerin_orfs = os.path.abspath(args.genome_orfs)
 else:
     thammerin_orfs = 'tmpOrAnPipeFrames.fa'

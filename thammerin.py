@@ -69,7 +69,7 @@ else:
                 frame_offset = frame_num
             else:
                 frame_offset = len(frameonef) - frame_num + 3
-            orfs = frame.translate().split('*')
+            orfs = frame.translate(trimX = False).split('*')
             last_orf_end = 0
             for orf in orfs:
                 orf_start = last_orf_end

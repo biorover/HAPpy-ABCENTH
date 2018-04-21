@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser.add_argument('--startphase', type = int, help = 'phase of preceding intron')
     parser.add_argument('--stopphase', type = int, help = 'phase of following intron')
     parser.add_argument('--expected_aa_length', type = int, help = 'expected length (in amino acids) of exon product')
-    parser.add_argument('--length_variance', help = 'permitted variance in exon length (in amino acids)')
+    parser.add_argument('--length_variance', type = int, help = 'permitted variance in exon length (in amino acids)')
     parser.add_argument('--strand', help = 'strand of expected feature')
     parser.add_argument('--search_coords', default = None, help = 'subset of sequence within which to search')
     parser.add_argument('--is_start', default = False, type = bool, help = 'Is this exon the first exon- i.e. should it start with atg instead of a splice site')
@@ -107,7 +107,7 @@ def main():
                 break    
     exon_coords = orf_finder(sequence,args.startphase, args.stopphase, args.strand,
                              args.expected_aa_length, args.length_variance, args.search_coords,
-                             args.is_start, args.is_stop)
+                             args.is_start, args.is_stop, hmm_profile = args.hmm_profile)
     for coords in exon_coords:
         print coords
 

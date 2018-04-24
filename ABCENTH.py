@@ -82,15 +82,15 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
             test_seq = genome.Sequence(seqdict[seqname][test_start-1 + phasestart_offset:tend])
             if strand == "-":
                 test_seq = test_seq.reverse_compliment()
-            if is_stop and strand == "-":
+            if not test_seq.translate():
+                continue
+            elif is_stop and strand == "-":
                 if ideal_start - 1 < test_start < pseudo_start:
                     pseudo_start = test_start
                 lastcodon = seqdict[seqname][test_start - 1:test_start + 2]
-                if lastcodon.upper() in ['TTA','TCA','CTA']:
+                if lastcodon.upper() in ['TTA','TCA','CTA'] and test_seq.translate().count('*') == 1:
                     start = test_start
                     break
-            elif not test_seq.translate():
-                continue
             elif not "*" in test_seq.translate():
                 if ideal_start - 1 < test_start < pseudo_start:
                     pseudo_start = test_start
@@ -114,7 +114,7 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
         if gc_start:
             start = gc_start
         else:
-            pseudo = True
+            pseudo = "P"
             start = pseudo_start
     for offset in range(0,max_offset + 3,3):
         if end:
@@ -126,11 +126,13 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
             test_seq = genome.Sequence(seqdict[seqname][start - 1 + phasestart_offset:test_end - phasestop_offset])
             if strand == "-":
                 test_seq = test_seq.reverse_compliment()
-            if is_stop and strand == "+":
+            if not test_seq.translate():
+                continue
+            elif is_stop and strand == "+":
                 if ideal_end + 1 > test_end > pseudo_end:
                     pseudo_end = test_end
                 lastcodon = seqdict[seqname][test_end - 3:test_end]
-                if lastcodon.upper() in ['TAA','TGA','TAG']:
+                if lastcodon.upper() in ['TAA','TGA','TAG'] and test_seq.translate().count('*') == 1:
                     end = test_end
                     break
             elif not "*" in test_seq.translate() or (is_stop and not "*" in test_seq.translate()[:-1]):
@@ -156,7 +158,7 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
         if gc_end:
             end = gc_end
         else:
-            pseudo = True
+            pseudo = "P"
             end = pseudo_end
     return [start,end,pseudo]
 
@@ -164,14 +166,17 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
 
 def exontuples2gff(exontuple_list,strand,feature_name,locus_name):
     outlines = []
+    problems = []
     is_pseudo = False
     for exontuple in exontuple_list:
         outlines.append('\t'.join([locus_name,'ABCENTH','CDS',str(min(exontuple[:2])),str(max(exontuple[:2])),'.',strand,
                                   '.','gene_id ' + feature_name + ';transcript_id ' + feature_name + '-RA']))
         if exontuple[2]:
             is_pseudo = True
+            problems.extend(list(exontuple2))
     if is_pseudo:
-        return '\n'.join(outlines).replace(';','PSE;').replace('-RA','PSE-RA')
+        problems = "".join(list(set(problems)))
+        return '\n'.join(outlines).replace(';',problems + ';').replace('-RA',problems + '-RA')
     else:
         return '\n'.join(outlines)
 
@@ -206,14 +211,18 @@ def recover_missing_exon(strand,cluster,exon_number,is_start,is_stop, search_coo
 
 def last_annotation_almost_complete():
     if last_strand == '-':
-        is_start, is_stop = True,False
+        is_start, is_stop, if_missing = True,False,"N"
     elif last_strand == '+':
-        is_start,is_stop = False,True
+        is_start,is_stop, if_missing = False,True,"C"
     recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],eval(str(last_exon_num) + last_strand + "1"),is_start,is_stop,[max((last_tend,last_tstart)),min(max((last_tend,last_tstart)) + 2000,min((tstart,tend)))])
-    if last_strand == '-' and last_startphase != 0 and not recovered:
-        working_annotation[-1][1] = working_annotation[-1][1] - ((3 - last_startphase) % 3)
-        working_annotation[-1][2] = 'True'
-    print exontuples2gff(working_annotation, strand,working_name[0],locus)
+    if not recovered:
+        if last_strand == '-' and last_startphase != 0:
+            working_annotation[-1][1] = working_annotation[-1][1] - ((3 - last_startphase) % 3)
+        if working_annotation[-1][2]:
+            working_annotation[-1][2] = working_annotation[-1][2] + if_missing
+        else:
+            working_annotation[-1][2] = if_missing
+    print exontuples2gff(working_annotation, last_strand,working_name[0],locus)
 
 
 #Here we go
@@ -284,10 +293,15 @@ for locus in locus_dict.keys():
             #Now adding found exon
             if strand == "+" and working_annotation == []:
                 working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_start = True,nevermind_atg = True))
+                if_fail = "N"
             else:
                 working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
+                if_fail = "C"
             if len(working_annotation) < 2:
-                working_annotation[0][2] = True #Flags as pseudogene because first/last exon was missed
+                if working_annotation[0][2]:
+                    working_annotation[0][2] = working_annotation[0][2] + if_fail #Flags as pseudogene because first/last exon was missed
+                else:
+                    working_annotation[0][2] = if_fail
         elif tstart - last_tstart > args.maxintron:
             #Intron was too long! Clearing annotation (or writing if almost done)
             if last_from_end == 1 and working_annotation != []:
@@ -319,7 +333,10 @@ for locus in locus_dict.keys():
                     working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus, is_start = True))
                 if from_start == last_from_start + 2 and not recovered:
                     #need to adjust exon start to account for mis-matched phase
-                    working_annotation[-1][2] = True
+                    if working_annotation[-1][2]:
+                        working_annotation[-1][2] = working_annotation[-1][2] + "I"
+                    else:
+                        working_annotation[-1][2] = "I"
                     if strand == "+":
                         exon_start_adjust = (3 - (last_endphase - ((3 - startphase)%3))) % 3
                         working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust

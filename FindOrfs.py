@@ -82,7 +82,7 @@ def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase):
         orf_file.write(">coords" + str(coords_index) + '\n' +
                        pep_seq + '\n' )
     orf_file.flush()
-    hmmout = subprocess.check_output('hmmsearch --max -E 0.5 ' + hmm_profile + ' ' + orf_file.name,
+    hmmout = subprocess.check_output('hmmsearch --max -E 0.1 ' + hmm_profile + ' ' + orf_file.name,
                                      shell = True).split('\n')
     found_hit = False
     for line in hmmout:

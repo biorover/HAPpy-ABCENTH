@@ -173,7 +173,7 @@ def exontuples2gff(exontuple_list,strand,feature_name,locus_name):
                                   '.','gene_id ' + feature_name + ';transcript_id ' + feature_name + '-RA']))
         if exontuple[2]:
             is_pseudo = True
-            problems.extend(list(exontuple2))
+            problems.extend(list(exontuple[2]))
     if is_pseudo:
         problems = "".join(list(set(problems)))
         return '\n'.join(outlines).replace(';',problems + ';').replace('-RA',problems + '-RA')
@@ -198,7 +198,7 @@ def recover_missing_exon(strand,cluster,exon_number,is_start,is_stop, search_coo
     if "query_exon_info_table" in args:
         missing_exon_info = exon_info_dict[str(cluster) + ':' + str(exon_number)]
         missing_coords = orf_finder(target_genome.genome_sequence[locus],int(missing_exon_info[3]),
-                                             int(missing_exon_info[4]),strand, int(missing_exon_info[5]),4, search_coords,
+                                             int(missing_exon_info[4]),strand, int(missing_exon_info[5]),5, search_coords,
                                              is_stop = is_stop,is_start = is_start,hmm_profile = missing_exon_info[6])
     if args.log:
         log_file.write(locus + '\t' + str(tstart) + '\t' + str(cluster) + '\t' + str(exon_number) + '\t' + str(search_coords) + '\t' + str(missing_coords) + '\n')
@@ -319,7 +319,10 @@ for locus in locus_dict.keys():
                 working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
                 if from_start == last_from_start + 2 and not recovered:
                     #need to adjust exon start to account for mis-matched phase
-                    working_annotation[-1][2] = True
+                    if working_annotation[-1][2]:
+                        working_annotation[-1][2] = working_annotation[-1][2] + "I"
+                    else:
+                        working_annotation[-1][2] = "I"
                     if strand == "+":
                         exon_start_adjust = (3 - (last_endphase - ((3 - startphase)%3))) % 3
                         working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust

@@ -19,7 +19,7 @@ if args.table:
 
 elif args.hmm_dir:
     for hmm_file in os.listdir(args.hmm_dir):
-        if hmm_file[-4:] == ".hmm":
+        if hmm_file[-4:] == ".hmm" and not "fullLenForHMM" in hmm_file:
             cluster = hmm_file.split('exon')[0]
             exon_number = hmm_file.split('exon')[1].split('of')[0]
             number_of_exons = hmm_file.split('of')[1].split('phases')[0]

@@ -8,16 +8,21 @@
 #soon- would it be too much to hope for that it will contain this function?
 
 import subprocess
-import genome
+import genome_fork as genome
 import argparse
 import os
 import tempfile
 
-parser = argparse.ArgumentParser(description='thammerin\nPronounced Tee hammerin\', so pronounced identically \
+parser = argparse.ArgumentParser(description='thammerin: Pronounced Tee hammerin\', so pronounced identically \
                                  to tHMMERn but does NOT infinge on the copyrights of HHMI (HMMER) or \
-                                 NCBI (tblastn)\nWraps hmmsearch to give the user a crude ability to conduct \
-                                 a HMMER search of a protein query against a nucleotide database.\n\nProgram\
-                                 dependencies:python (obviously),hmmer suite v3,genome library from MAGOT')
+                                 NCBI (tblastn). \nWraps hmmsearch to give the user a crude ability to conduct \
+                                 a HMMER search of a protein query against a nucleotide database. \n\nProgram\
+                                 dependencies:python (obviously), hmmer suite v3, and the genome_fork library from HAP.py. \n\
+                                 Nota bene: for a 200 Mbp genome, building a database of translated sequences takes \
+                                 ca. 5 minutes and running hmmsearch against this database takes ca. 5 seconds. Therefore \
+                                 if you are going to run a search on the same genome multiple times it will GREATLY improve \
+                                 perfomance if you save the database from the first run with the "--frames_out" option \
+                                 and use it in subsequent runs with the "--frames_in" option.')
 
 parser.add_argument('-n','--nucleotide_seqs',dest='target_nucdb',
                     help = 'Nucleotide sequences to be searched (in fasta format)')
@@ -28,7 +33,7 @@ parser.add_argument('-e','--iEvalue_threshold', dest = 'iEval_thresh', default =
 parser.add_argument('-s','--min_orf_size', dest = 'min_orf_size', default = 10,
                     help = 'minimum orf to search with HMM profile')
 parser.add_argument('-f','--hmmsearch_filepath',dest = 'hmmsearch_filepath', default = 'hmmsearch',
-                    help = 'optional path to hmmsearch program in not in your PATH variable')
+                    help = 'optional path to hmmsearch program if not in your PATH variable')
 # parser.add_argument('--out_format', dest = 'out_format', default = 'standard',
 #                     help = 'output format, currently defunct, may eventually accept any combination of hmm name, target name, percent identity,\
 #                     alignment length, mismatch number, null field (for compatibility with blast standard output), hmm start,\
@@ -39,6 +44,7 @@ parser.add_argument('-f','--hmmsearch_filepath',dest = 'hmmsearch_filepath', def
 parser.add_argument('--frames_out' , default = False, help = 'File to save the translated frames \
                     if you want to keep them (e.g. to use for a later run)')
 parser.add_argument('--frames_in', default = False, help = 'File with frames from a previous run (will not re-make frames)')
+parser.add_argument('--hmmsearch_log', default = False, help = 'Log file to write the full hmmsearch results to (optional)')
 
 args=parser.parse_args()
 
@@ -47,16 +53,14 @@ hmmsearch = args.hmmsearch_filepath
 target_nucdb = genome.Genome(args.target_nucdb)
 
 #Gets ORFs from the genome and hmmers them
+
 if args.frames_in:
     frames_file = args.frames_in
-    tempfile_root = tempfile.NamedTemporaryFile()
 else:
     if args.frames_out:
         frame_fasta = open(args.frames_out,'w')
-        tempfile_root = frame_fasta
     else:
         frame_fasta = tempfile.NamedTemporaryFile('w')
-        tempfile_root = frame_fasta
     for seq_id in target_nucdb.genome_sequence:
         frameonef = genome.Sequence(target_nucdb.genome_sequence[seq_id])
         frameoner = genome.Sequence(target_nucdb.genome_sequence[seq_id]).reverse_compliment()
@@ -81,8 +85,9 @@ else:
     frame_fasta.flush()
     frames_file = frame_fasta.name
 
-subprocess.call(hmmsearch + " --domtblout " + tempfile_root.name + ".hmmsearch.tab " + args.hmm_file + " " + frames_file +" >> tmp_thammer_log.log", shell=True)
-hmmresults = open(tempfile_root.name + ".hmmsearch.tab")
+output_tempfile = tempfile.NamedTemporaryFile()
+subprocess.call(hmmsearch + " --domtblout " + output_tempfile.name + " " + args.hmm_file + " " + frames_file +" >> tmp_thammer_log.log", shell=True)
+hmmresults = open(output_tempfile.name)
 for line in hmmresults:
     if line[0] != "#":
         fields = line.split()
@@ -102,6 +107,7 @@ for line in hmmresults:
                              fields[15],fields[16],str(start),str(stop),fields[12],fields[13]])
 
 try:
+    output_tempfile.close()
     frame_fasta.close()
 except:
     pass

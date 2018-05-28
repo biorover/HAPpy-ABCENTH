@@ -4,229 +4,325 @@ import sys
 import os
 import argparse
 import genome_fork as genome
+import toolbox_for_HAP
+import CandidateLociBuilder
+import AnnotatorRunner
 import subprocess
 import ete2
 import time
 import copy
+import threading
 
-parser = argparse.ArgumentParser(description="Pipeline for annotating ORs in a genome using homology and exon \
-                                 phase information from a closely related species.\n\nProgram dependencies:\n\
-                                 python\nmafft\nhmmer suite\nthammerin.py\nGeMoMa.\n\nAdditionally, this program requires \
-                                 the genome library from MAGOT (multitool for analyzing genomes or \
-                                 transcriptomes, github.com/biorover/MAGOT) and the ete2 python library. These \
-                                 libraries must be in a directory in the PYTHONPATH \
-                                 environmental variable. If you don't know what that means, just install ete2 \
-                                 according to the directions on the programs website, and download MAGOT \
-                                 to some directory and in any given terminal session in which you'll use this\
-                                 tool, type \"export PYTHONPATH=$PYTHONPATH:/path/to/MAGOTdirectory\", or add \
-                                 that command to your .profile (being sure to source your profile after you \
-                                 add it). One day I promise to set up MAGOT with an install script. Maybe by the \
-                                 time you're using this I'll have done that! Wow, you have a high tolerance for \
-                                 reading long help texts. Good job!")
+parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFormatter,
+                                 usage = "\npython HAP.py [optional arguments] --genome <genome.fa> " +
+                                 " > output.gtf\npython HAP.py [optional arguments] --genome <genome.fa> ".join([
+                                 "--annotations <ann.gtf> [ann2.gtf ...] --ref_genome <ref.fa> [ref2.fa ...]",
+                                 "--protein_seqs <proteins.fa>", "--hmm <proteins.hmm>", "--fasta_dir <fasta_directory/>",
+                                 "--alignment_dir <alignment_directory/>","--hmm_dir <hmm_directory/> [--augustus_profile_dir <prfl_directory>]"])
+                                 + ' > output.gtf',
+                                 description= "Pipeline for annotating genes in a genome using homologous sequences \
+from a related species. \n\nProgram dependencies: \
+python, mafft, hmmer suite v3, ete2 python library, and genewise. \n\nHAP.py can \
+be run with a single set of related genes, multiple predefined clusters of \
+related genes, or it can build clusters from large highly divergent gene families. \
+HAP.py can take as input a gtf and genome from one or more related species, \
+an unaligned fasta file of query protein sequences, an HMM built from query \
+protein sequences using HMMER v3, or directories containing files corresponding to pre-defined \
+clusters of related genes- either as unaligned fasta files, protein sequence alignments, or HMMs.")
 
-parser.add_argument('-a','--annotations',dest='annotations', 
-                    help = 'Annotations (in gtf format)')
-
-parser.add_argument('-r','--ref_genome',dest="ref_genome",
-                    help = 'genome of closely related species')
-
-parser.add_argument('-g','--genome',dest='target_genome', 
-                    help = 'genome to be annotated')
-
-parser.add_argument('-f','--program_filepaths',dest = 'program_filepaths', default = None, 
+parser.add_argument('--genome',dest='target_genome', help = 'genome to be annotated')
+parser.add_argument('--annotations', nargs = "*", default = None, help = 'One or more sets of annotations (in gtf format)')
+parser.add_argument('--ref_genome', nargs = "*", default = None, help = 'One or more genomes of closely related species\
+                    (you should provide one genome for each gtf given for --annotations and ensure the order is the same; genomes should \
+                    be in fasta format)')
+parser.add_argument('--program_filepaths', default = None, 
                     help = 'optional list of file paths for programs not in PATH variable, formated as "programName=/path/to/programName"')
-
-parser.add_argument('-m','--min_orf_size',dest='min_orf_size', default = 10,
+parser.add_argument('--min_orf_size', default = 10, type = int,
                     help = 'minimum size for orfs to be search by hmmsearch')
-
-parser.add_argument('-c','--cutoff',dest = 'distance_cutoff', default = 0.5, type = float,
-                    help = 'distance cutoff for seperating proteins into clusters for hmm building. Will have\
-                           to be determined empirically.')
-
-parser.add_argument('-t','--threads', dest = 'threads', default = 1, type = int,
-                    help = "number of threads to be used with processes that support multithreading (currently just mafft)")
-
-parser.add_argument('--tree',dest = 'gene_tree', default = None,
-                    help = 'pre-computed UPGMA gene tree for query genes to save time')
-
-parser.add_argument('--thammerin_results', dest = 'thammerin_results', default = None,
-                    help = 'pre-computed thammerin results')
-
-parser.add_argument('--buffer', dest = 'buffer', default = 500,
+parser.add_argument('--cutoff',dest = 'distance_cutoff', default = 1.0, type = float,
+                    help = 'Distance cutoff for seperating proteins into clusters. Accepts values from zero to one, default = 1.0 (no breaking into clusters)')
+parser.add_argument('--threads', default = 1, type = int,
+                    help = "number of threads to be used with processes that support multithreading (mafft and thammerin)")
+parser.add_argument('--thammerin_results', dest = 'thammerin_results', default = None, help = 'pre-computed thammerin results')
+parser.add_argument('--buffer', dest = 'buffer', default = 500, type = int,
                     help = 'buffer on either side of loci identified to feed into gene predictor')
-
 parser.add_argument('--evalue', default = 0.05, type = float, help = 'Evalue cutoff for thammerin')
-
 parser.add_argument('--genome_orfs', default = None, help = 'ORFs file from previous thammerin run (saves about five minutes for insect-sized genomes)')
+parser.add_argument('--search_mode', default = 'fl', help = 'Search with full length sequences ("fl") or individual exons ("exons"). \
+                    Default = "fl". "exons" requires input in the form of --annotations + --ref_genome, and this option is required for \
+                    the "--annotator ABCENTH" option.')
+parser.add_argument('--annotator', default = "genewise", help = 'Program to use for building final annotations. Currently the options \
+                    are "genewise" (default) and "ABCENTH". I plan to add support for hint-guided AUGUSTUS at some point.')
+parser.add_argument('--protein_seqs', default = None,
+                    help = 'homologous protein sequences (can replace -a + -r for the "full_length" runmode)')
+parser.add_argument('--hmm', default = None, help = "Protein HMM (built with HMMER v3 hmmbuild)")
+parser.add_argument('--fasta_dir', default = None, help = 'Directory of UNALIGNED fasta files for predefined clusters')
+parser.add_argument('--alignment_dir', default = None, help = 'Directory of ALIGNED fasta files for predefined clusters')
+parser.add_argument('--hmm_dir', default = None, help = "Directory of HMM files for predefined clusters")
+parser.add_argument('--augustus_profile_dir', default = None, help = 'directory of augustus profiles corresponding to entries in "--hmm_dir" \
+                    (for optional use with "--hmm_dir <dir>" and "--annotator augustus")')
+parser.add_argument('--augustus_species', default = 'fly', help = 'species name for augustus parameters (default = "fly")')
 
 args = parser.parse_args()
 
-
-#sets up some basic variables
-dthresh = args.distance_cutoff
-if args.genome_orfs:
-    thammerin_orfs = os.path.abspath(args.genome_orfs)
-else:
-    thammerin_orfs = 'tmpOrAnPipeFrames.fa'
-
 #sets up default program paths, overwritten by any program paths passes with -f or --program_filepaths
+program_dir = "/".join(os.path.abspath(__file__).split('/')[:-1]) + '/'
 hmmsearch = "hmmsearch"
+hmmconvert = "hmmconvert"
 hmmbuild = "hmmbuild"
 mafft = "mafft"
-thammerin = "thammerin.py"
+thammerin = program_dir + 'thammerin.py'
+augustus = "augustus"
+genewisedb = "genewisedb"
 
 if args.program_filepaths:
     for line in args.program_filepaths:
         exec(line.replace('\n','').replace('\r',''))
 
 
-#Reads in annotations, sets annotation genome path
-ref_genomes = []
-genome_paths = args.ref_genome.split(',')
-geneset_paths = args.annotations.split(',')
-for genome_index in range(len(genome_paths)):
-    ref_genomes.append(genome.Genome(genome_paths[genome_index]))
-    ref_genomes[genome_index].read_gff(geneset_paths[genome_index])
+#checks that arguments make sense
+if args.annotations:
+    if not args.ref_genome:
+         sys.exit('Argument error: A reference genome file must be provide under "--ref_genome" for each gtf given under "--annotations"')
+    elif type(args.annotations) == list:
+        if len(args.annotations) != len(args.ref_genome):
+            sys.exit('Argument error: A reference genome file must be provide under "--ref_genome" for each gtf given under "--annotations"')
+if args.search_mode == "exons" and not args.annotations:
+    sys.exit('Argument error: "--search_mode exons" can only be used with the input options "--annotations" + "--ref_genome"')
+if args.annotator == "ABCENTH":
+    if args.search_mode != "exons":
+        sys.exit('Argument error: "--annotator ABCENTH" can only be used with "--search_mode exons" and the input options "--annotations" + "--ref_genome"')
 
-    
+
+#sets up some basic variables
+dthresh = args.distance_cutoff
 target_genome = os.path.abspath(args.target_genome)
 call_directory = os.getcwd()
+if args.augustus_profile_dir:
+    augustus_profile_dir = os.path.abspath(args.augustus_profile_dir)
+elif not args.hmm_dir:
+    augustus_profile_dir = 'tmpOrAnPipePrfls'
+else:
+    augustus_profile_dir = None
 
-subprocess.call('mkdir -p tmpOrAnPipeDir',shell = True)
+if args.genome_orfs:
+    thammerin_orfs = os.path.abspath(args.genome_orfs)
+else:
+    thammerin_orfs = 'tmpOrAnPipeFrames.fa'
+if args.hmm_dir:
+    hmm_dir = os.path.abspath(args.hmm_dir) + '/'
+if args.fasta_dir:
+    fasta_dir = os.path.abspath(args.fasta_dir) + '/'
+if args.alignment_dir:
+    alignment_dir = os.path.abspath(args.alignment_dir) + '/'
+if args.protein_seqs:
+    protein_seqs = os.path.abspath(args.protein_seqs)
+    prot_seq_dict = {}
+if args.hmm:
+    protein_hmm = os.path.abspath(args.hmm)
+
+#Reads in annotations, sets annotation genome path
+if args.annotations:
+    ref_genomes = []
+    genome_paths = args.ref_genome
+    geneset_paths = args.annotations
+    for genome_index in range(len(genome_paths)):
+        ref_genomes.append(genome.Genome(genome_paths[genome_index]))
+        ref_genomes[genome_index].read_gff(geneset_paths[genome_index])
+
+
+os.mkdir('tmpOrAnPipeDir')
 os.chdir('tmpOrAnPipeDir')
-#Writes protein sequences, builds a distance tree using mafft, and parses this tree to give hmm groups
-flprots = open('tmpOrAnPipe.flpeps.fa','w')
-for ref_genome in ref_genomes:
-    flprots.write(ref_genome.annotations.get_fasta('gene',seq_type = 'protein')+'\n')
+os.mkdir('tmpOrAnPipeHMMs')
+os.mkdir('tmpOrAnPipePrfls')
 
-flprots.close()
-
-if not args.gene_tree:
+#Define functions which run individual steps of HAP.py program
+def build_clusters():
+    """Builds a pairwise-alignment UPGMA tree using MAFFT and breaks the tree into clusters of genes\
+    within a specified p-distance of each other"""
+    flprots = open('tmpOrAnPipe.flpeps.fa','w')
+    if args.protein_seqs:
+        protein_sequences = open(call_directory + '/' + args.protein_seqs).read()
+        flprots.write(protein_sequences)
+        for seq in protein_sequences.split('>')[1:]:
+            seq_lines = seq.replace('\r','').split('\n')
+            prot_seq_dict[seq_lines[0]] = "".join(seq_lines[1:])
+    elif args.annotations:
+        for ref_genome in ref_genomes:
+            flprots.write(ref_genome.annotations.get_fasta('gene',seq_type = 'protein')+'\n')
+    flprots.close()
     subprocess.call(mafft + ' --thread ' + str(args.threads) + ' --globalpair --treeout tmpOrAnPipe.flpeps.fa > tmpeOrAnPipe.tmp', shell = True)
     prottree = ete2.Tree(open('tmpOrAnPipe.flpeps.fa.tree').read() + ';')
-else:
-    prottree = ete2.Tree(open(call_directory + '/' + args.gene_tree).read())
-    
-clusters = []
-dont_append = False
-while prottree.get_distance(prottree.get_leaves()[0]) > dthresh and len(prottree.get_leaves()) > 1:
-    children = prottree.get_children()
-    child_one_dist = children[0].get_distance(children[0].get_leaves()[0])
-    child_two_dist = children[1].get_distance(children[1].get_leaves()[0])
-    while child_one_dist > dthresh and child_two_dist > dthresh:
-        children = children[0].get_children()
+    clusters = []
+    dont_append = False
+    while prottree.get_distance(prottree.get_leaves()[0]) > dthresh and len(prottree.get_leaves()) > 1:
+        children = prottree.get_children()
         child_one_dist = children[0].get_distance(children[0].get_leaves()[0])
         child_two_dist = children[1].get_distance(children[1].get_leaves()[0])
-    if child_one_dist < dthresh:
-        clusters.append(children[0].get_leaf_names())
-        try:
-            prottree.prune(list(set(prottree.get_leaves()) - set(children[0].get_leaves())), preserve_branch_length = True)
-        except:
-            if len(prottree.get_leaves()) < 2:
-                dont_append = True
-                break
-    if child_two_dist < dthresh:
-        clusters.append(children[1].get_leaf_names())
-        try:
-            prottree.prune(list(set(prottree.get_leaves()) - set(children[1].get_leaves())), preserve_branch_length = True)
-        except:
-            if len(prottree.get_leaves()) < 2:
-                dont_append = True
-                break
-
-if not dont_append:
-    clusters.append(prottree.get_leaf_names())
-
-#Builds HMMs for exons in clusters and runs thammerin with all hmms vs the genome to be annotated
-cluster_dict = {}
-lengths_dict = {}
-subprocess.call('mkdir tmpOrAnPipeHMMs', shell=True)
-for cluster_index in range(len(clusters)):
-    cluster = clusters[cluster_index]
-    cluster_dict[cluster_index] = []
-    exon_number = None
-    exon_phases = None
-    exon_lengths = None
-    exon_file_root = "tmpOrAnPipeHMMs/cluster" + str(cluster_index)
-    for seqname in cluster:   
-        transcript_id = "_".join(seqname.split("_")[1:])
-        for ref_genome in ref_genomes:
+        while child_one_dist > dthresh and child_two_dist > dthresh:
+            children = children[0].get_children()
+            child_one_dist = children[0].get_distance(children[0].get_leaves()[0])
+            child_two_dist = children[1].get_distance(children[1].get_leaves()[0])
+        if child_one_dist < dthresh:
+            clusters.append(children[0].get_leaf_names())
             try:
-                cluster_dict[cluster_index].append(ref_genome.annotations.transcript[transcript_id])
-                if not exon_number:
-                    exon_number = len(ref_genome.annotations.transcript[transcript_id].child_list)
-                else:
-                    if len(ref_genome.annotations.transcript[transcript_id].child_list) != exon_number:
-                        print "uh oh, transcripts with varying number of exons in: cluster " + str(cluster_index) + ", specifically gene " + transcript_id
+                prottree.prune(list(set(prottree.get_leaves()) - set(children[0].get_leaves())), preserve_branch_length = True)
+            except:
+                if len(prottree.get_leaves()) < 2:
+                    dont_append = True
+                    break
+        if child_two_dist < dthresh:
+            clusters.append(children[1].get_leaf_names())
+            try:
+                prottree.prune(list(set(prottree.get_leaves()) - set(children[1].get_leaves())), preserve_branch_length = True)
+            except:
+                if len(prottree.get_leaves()) < 2:
+                    dont_append = True
+                    break
+    if not dont_append:
+        clusters.append(prottree.get_leaf_names())
+    return clusters
+
+def output_fastas(search_mode):
+    """Uses clusters dictionary built by "build_clusters" to break input sequences into fastas\
+    for individual clusters. If search_mode = "exons", builds fastas for each exon."""
+    cluster_dict = {}
+    lengths_dict = {}
+    for cluster_index in range(len(clusters)):
+        cluster = clusters[cluster_index]
+        exon_file_root = "tmpOrAnPipeHMMs/cluster" + str(cluster_index)
+        cluster_dict[cluster_index] = []
+        exon_number = None
+        exon_phases = None
+        exon_lengths = None
+        for seqname in cluster:   
+            transcript_id = "_".join(seqname.split("_")[1:])
+            if args.protein_seqs:
+                seq_out = open(exon_file_root + '.fa','a')
+                seq_out.write(">" + transcript_id + "\n" + prot_seq_dict[transcript_id] + '\n')
+                seq_out.close()
+            else:
+                for ref_genome in ref_genomes:
+                    try:
+                        cluster_dict[cluster_index].append(ref_genome.annotations.transcript[transcript_id])
+                    except KeyError:
                         continue
-                sortlist = []
-                for CDS_id in ref_genome.annotations.transcript[transcript_id].child_list:
-                    sortlist.append((ref_genome.annotations.CDS[CDS_id].get_coords(),CDS_id))
-                sortlist.sort()
-                if ref_genome.annotations.transcript[transcript_id].strand == "-":
-                    sortlist.reverse()
-                if not exon_phases:
-                    exon_phases = []
-                    exon_lengths = []
-                    current_phase = [0,0]
-                    for cds_info in sortlist:
-                        current_phase[1] = (current_phase[0] + cds_info[0][1] - cds_info[0][0] + 1) % 3
-                        exon_lengths.append((cds_info[0][1] - current_phase[0] - cds_info[0][0] + 1) / 3)
-                        exon_phases.append(current_phase[:])
-                        current_phase[0] = current_phase[1]
-                for CDS_index in range(len(sortlist)):
-                    cds_out = open(exon_file_root + "exon" + str(CDS_index) + 'of' + str(exon_number - 1) + 'phases' + str(exon_phases[CDS_index][0]) + 'and' + str(exon_phases[CDS_index][1])+ '.fa','a')
-                    CDS_id = sortlist[CDS_index][1]
-                    phase_slice_offset = (3 - exon_phases[CDS_index][0]) % 3
-                    cds_out.write(">" + transcript_id + "-" + str(CDS_index) + '\n' + genome.Sequence(ref_genome.annotations.CDS[CDS_id].get_seq()[phase_slice_offset:]).translate() + '\n')
-                    cds_out.close()
-                lengths_dict[cluster_index] = exon_lengths[:]
-            except KeyError:
-                pass
+                    seq_out = open(exon_file_root + 'fullLenForHMM.fa','a')
+                    seq_out.write(ref_genome.annotations.transcript[transcript_id].get_fasta(seq_type='protein') + '\n')
+                    seq_out.close()
+                    if search_mode == "exons":
+                        if not exon_number:
+                            exon_number = len(ref_genome.annotations.transcript[transcript_id].child_list)
+                        else:
+                            if len(ref_genome.annotations.transcript[transcript_id].child_list) != exon_number:
+                                print "uh oh, transcripts with varying number of exons in: cluster " + str(cluster_index) + ", specifically gene " + transcript_id
+                                continue
+                        sortlist = []
+                        for CDS_id in ref_genome.annotations.transcript[transcript_id].child_list:
+                            sortlist.append((ref_genome.annotations.CDS[CDS_id].get_coords(),CDS_id))
+                        sortlist.sort()
+                        if ref_genome.annotations.transcript[transcript_id].strand == "-":
+                            sortlist.reverse()
+                        if not exon_phases:
+                            exon_phases = []
+                            exon_lengths = []
+                            current_phase = [0,0]
+                            for cds_info in sortlist:
+                                current_phase[1] = (current_phase[0] + cds_info[0][1] - cds_info[0][0] + 1) % 3
+                                exon_lengths.append((cds_info[0][1] - current_phase[0] - cds_info[0][0] + 1) / 3)
+                                exon_phases.append(current_phase[:])
+                                current_phase[0] = current_phase[1]
+                        for CDS_index in range(len(sortlist)):
+                            cds_out = open(exon_file_root + "exon" + str(CDS_index) + 'of' + str(exon_number - 1) + 'phases' + str(exon_phases[CDS_index][0]) + 'and' + str(exon_phases[CDS_index][1])+ '.fa','a')
+                            CDS_id = sortlist[CDS_index][1]
+                            phase_slice_offset = (3 - exon_phases[CDS_index][0]) % 3
+                            cds_out.write(">" + transcript_id + "-" + str(CDS_index) + '\n' + genome.Sequence(ref_genome.annotations.CDS[CDS_id].get_seq()[phase_slice_offset:]).translate() + '\n')
+                            cds_out.close()
+                        lengths_dict[cluster_index] = exon_lengths[:]
 
-running_commands = [] #for multithreading
-
-exon_pep_files = os.listdir("tmpOrAnPipeHMMs/")
-
-for file_name in exon_pep_files:
-    if open("tmpOrAnPipeHMMs/" + file_name).read().count('>') > 1:
-        print "Aligning " + file_name
-        subprocess.call("mafft --globalpair --maxiterate 1000 tmpOrAnPipeHMMs/" + file_name + " > tmpOrAnPipeHMMs/"+ file_name[:-3] + ".mafftGinsi.fa 2> tmp.tmp" , shell = True)
-    else:
-        print "Copying " + file_name
-        subprocess.call('cp tmpOrAnPipeHMMs/' + file_name + ' tmpOrAnPipeHMMs/' + file_name[:-3] + ".mafftGinsi.fa", shell = True)
-    try:
-        query_len = subprocess.check_output(hmmbuild + " --amino tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm tmpOrAnPipeHMMs/" + file_name[:-3] + ".mafftGinsi.fa", shell = True).split('\n')[12].split()[4]
-    except subprocess.CalledProcessError:
-        print "Hm, problem with hmmbuild for file " + file_name
-    gene_cluster = file_name.split('exon')[0]
-    subprocess.call("sed -i -e 's/mafftGinsi/___" + gene_cluster + "_len_" + query_len + "/g' tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm", shell = True)
-    
-    if not args.thammerin_results:
-        if not "tmpOrAnPipeFrames.fa" in os.listdir('./') and not args.genome_orfs:
-            running_commands.append(subprocess.Popen(thammerin + " --frames_out tmpOrAnPipeFrames.fa -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm -n " + target_genome + ' > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab', shell = True))
-            for command in running_commands:
-                command.wait()
+def thammerin_func(file_name, hmm_dir):
+    if not args.hmm_dir and not args.hmm:
+        hmm_suffix = ".hmm"
+        if open(query_pep_dir + file_name).read().count('>') > 1 and not args.alignment_dir:
+            print "Aligning " + file_name
+            subprocess.call("mafft --globalpair --maxiterate 1000 " + query_pep_dir + file_name +
+                            " > tmpOrAnPipeHMMs/"+ file_name + ".mafftGinsi.fa 2> tmp.tmp",
+                            shell = True)
         else:
-            running_commands.append(subprocess.Popen(thammerin + " --frames_in " + thammerin_orfs + " -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + '.hmm > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab', shell = True))
+            print "Copying " + file_name
+            subprocess.call('cp ' + query_pep_dir + file_name + ' tmpOrAnPipeHMMs/' + file_name +
+                            ".mafftGinsi.fa", shell = True)
+        gene_cluster = file_name.split('exon')[0]
+        if "augustus" in args.annotator and augustus_profile_dir:
+            subprocess.call('msa2prfl.pl  tmpOrAnPipeHMMs/' + file_name + '.mafftGinsi.fa > tmpOrAnPipePrfls/'
+                            + file_name + '.prfl', shell = True)
+        try:
+            subprocess.call(hmmbuild + " --amino tmpOrAnPipeHMMs/" + file_name + ".hmm tmpOrAnPipeHMMs/"
+                            + file_name + ".mafftGinsi.fa > tmp.tmp", shell = True)
+        except subprocess.CalledProcessError:
+            print "Hm, problem with hmmbuild for file " + file_name
+    else:
+        hmm_suffix = ""
+    query_len = int(subprocess.check_output('grep "LENG " ' + hmm_dir + file_name + hmm_suffix,
+                                            shell = True).split()[1])
+    subprocess.call("sed -e  '/NAME /s/$/_hmmFile_" + file_name + hmm_suffix + ".lenAdded.hmm" + "_len_" + str(query_len) + "/' " + hmm_dir + file_name +
+                    hmm_suffix + " > tmpOrAnPipeHMMs/" + file_name + hmm_suffix + ".lenAdded.hmm", shell = True)
+    if not args.thammerin_results and (args.search_mode == "fl" or not "fullLenForHMM" in file_name):
+        if not "tmpOrAnPipeFrames.fa" in os.listdir('./') and not args.genome_orfs:
+            subprocess.call(thammerin + " --frames_out tmpOrAnPipeFrames.fa -e " +
+                             str(args.evalue) + " -p tmpOrAnPipeHMMs/" +
+                             file_name + hmm_suffix + ".lenAdded.hmm -n " + target_genome +
+                             ' > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab',
+                             shell = True)
+        else:
+            subprocess.call(thammerin + " --frames_in " + thammerin_orfs + " -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name + hmm_suffix + '.lenAdded.hmm > ' + file_name[:-3] + '.tmpOrAnPipe.thammerin.tab', shell = True)
     #debug
-        print "Running " + thammerin + " -e " + str(args.evalue) + " -p tmpOrAnPipeHMMs/" + file_name[:-3] + ".hmm -n " + target_genome
+        print "Running " + thammerin + " --frames_in " + thammerin_orfs + " -e " + str(args.evalue) + \
+            " -p tmpOrAnPipeHMMs/" + file_name + hmm_suffix + '.lenAdded.hmm'
     #/debug
-    ongoing_commands_count = 0
-    for cmd in running_commands:
-        if cmd.poll() == None:
-            ongoing_commands_count = ongoing_commands_count + 1
-    while ongoing_commands_count >= args.threads / 3:
-        time.sleep(5)
-        ongoing_commands_count = 0
-        for cmd in running_commands:
-            if cmd.poll() == None:
-                ongoing_commands_count = ongoing_commands_count + 1
+
+#Writes protein sequences, builds a distance tree using mafft, and parses this tree to give hmm groups
+if (dthresh < 1 and args.protein_seqs) or args.annotations:
+    clusters = build_clusters()
+    output_fastas(args.search_mode)
+    query_pep_files = os.listdir('tmpOrAnPipeHMMs')
+    query_pep_dir = 'tmpOrAnPipeHMMs/'
+elif dthresh < 1:
+    sys.stderr.write("Warning: --cutoff was less than 1, indicating that you wanted HAP to split queries into clusters, \
+    however query sequences were not provided in a splitable format. Continuing assuming --cutoff value was an error.\n")
+#No clustering needed, proceeds
+elif args.protein_seqs:
+    query_pep_files = [protein_seqs.split('/')[-1]]
+    query_pep_dir = "/".join(protein_seqs.split('/')[:-1]) + '/'
+elif args.hmm:
+    query_pep_files = [protein_hmm.split('/')[-1]]
+    query_pep_dir = "/".join(protein_hmm.split('/')[:-1]) + '/'
+    hmm_dir = ""
+elif args.fasta_dir:
+    query_pep_files = os.listdir(fasta_dir)
+    query_pep_dir = fasta_dir
+elif args.alignment_dir:
+    query_pep_files = os.listdir(alignment_dir)
+    query_pep_dir = alignment_dir
+elif args.hmm_dir:
+    query_pep_files = os.listdir(hmm_dir)
+    query_pep_dir = hmm_dir
+
+
+
+for file_name in query_pep_files:
+    if not args.hmm_dir and not args.hmm:
+        hmm_dir = "tmpOrAnPipeHMMs/"
+    if not "tmpOrAnPipeFrames.fa" in os.listdir('./') and not args.genome_orfs:
+        thammerin_func(file_name,hmm_dir)
+    else:
+        threading.Thread(target = thammerin_func,args = [file_name,hmm_dir]).start()
+        while threading.active_count() >= 2 + args.threads / 3:
+            time.sleep(0.1)
 
 if not args.thammerin_results:
-    for command in running_commands:
-        command.wait()
-
+    while threading.active_count() > 1:
+        time.sleep(1)
     subprocess.call('cat *.tmpOrAnPipe.thammerin.tab > tmpOrAnPipe.thammerin.tab', shell = True)
     blasttab = 'tmpOrAnPipe.thammerin.tab'
 else:
@@ -239,134 +335,44 @@ blast_tab = open(blasttab).read().split('\n')
 if blast_tab[-1] == "":
     blast_tab.pop()
 
-for hsp in blast_tab:
-    fields = hsp.split('\t')
-    tid = fields[1]
-    #qlen = int(fields[0].split('_len_')[1])
-    dist_from_start = int(fields[0].split('exon')[1].split('of')[0])
-    dist_from_end = int(fields[0].split('of')[1].split('phase')[0]) - dist_from_start
-    dict_add = []
-    if dist_from_start == 0:
-        if int(fields[9]) > int(fields[8]):
-            dict_add.append((int(fields[8]), "start"))
-        else:
-            dict_add.append((int(fields[8]), "end"))
-    elif dist_from_start == 1:
-        if int(fields[9]) > int(fields[8]):
-            dict_add.append((int(fields[8]), "almost_start"))
-        else:
-            dict_add.append((int(fields[8]), "almost_end"))
-    if dist_from_end == 0:
-        if int(fields[9]) > int(fields[8]):
-            dict_add.append((int(fields[9]), "end"))
-        else:
-            dict_add.append((int(fields[9]), "start"))
-    elif dist_from_end == 1:
-        if int(fields[9]) > int(fields[8]):
-            dict_add.append((int(fields[9]), "almost_end"))
-        else:
-            dict_add.append((int(fields[9]), "almost_start"))
-    if dict_add != []:
-        if tid in coord_dict:
-            coord_dict[tid].extend(copy.deepcopy(dict_add))
-        else:
-            coord_dict[tid] = copy.deepcopy(dict_add)
+if args.search_mode == "exons":
+    coord_dict = CandidateLociBuilder.build_coord_dict_based_on_exon_number(blast_tab)
+elif args.search_mode == "fl":
+    coord_dict = CandidateLociBuilder.build_coord_dict_based_on_seq_length(blast_tab)
+
+candidate_loci_fasta_list = CandidateLociBuilder.find_candidate_loci(coord_dict, args.buffer, target_genome)
+
+candidate_loci = open('candidate_loci.fasta','w')
+candidate_loci.write('\n'.join(candidate_loci_fasta_list))
+candidate_loci.close()
 
 
-#break into candidate loci (between start HSP and end HSP, +- buffer bp)
-candidate_hits = open("Candidate_start-stop_hits.txt",'w')
-for tid in coord_dict:
-    coord_dict[tid].sort()
-    candidate_hits.write(tid + ': ' + str(coord_dict[tid]) + '\n')
-candidate_hits.close()
-
-candidate_loci = {}
-for tid in coord_dict:
-    candidate_loci[tid] = []
-    coord_dict[tid].sort()
-    largest_end = 0
-    for coord_index in range(len(coord_dict[tid]) - 1):
-        if coord_dict[tid][coord_index + 1][0] - coord_dict[tid][coord_index][0] < 10000 and coord_dict[tid][coord_index][0] > largest_end:
-            if coord_dict[tid][coord_index][1] == "start" and coord_dict[tid][coord_index + 1][1] == 'end':
-                candidate_loci[tid].append((coord_dict[tid][coord_index][0],coord_dict[tid][coord_index + 1][0]))
-            elif coord_dict[tid][coord_index][1] == "start" and coord_dict[tid][coord_index + 1][1] == 'almost_start' and coord_index + 2 < len(coord_dict[tid]):
-                counter = coord_index + 2
-                end_found = False
-                almost_end_found = False
-                while coord_dict[tid][counter][0] - coord_dict[tid][coord_index][0] < 10000 and not coord_dict[tid][counter][1] == "start":
-                    if coord_dict[tid][counter][1] == 'end':
-                        candidate_loci[tid].append((coord_dict[tid][coord_index][0],coord_dict[tid][counter][0]))
-                        end_found = True
-                        break
-                    elif counter + 1 == len(coord_dict[tid]):
-                        break
-                    elif coord_dict[tid][counter][1] == 'almost_end':
-                        highest_almost_end_index = counter
-                        almost_end_found = True
-                    counter = counter + 1
-                if almost_end_found and not end_found:
-                    candidate_loci[tid].append((coord_dict[tid][coord_index][0],coord_dict[tid][highest_almost_end_index][0]))
-            elif coord_dict[tid][coord_index][1] == "start" and coord_dict[tid][coord_index + 1][1] == 'almost_end' and coord_index + 2 < len(coord_dict[tid]):
-                counter = coord_index + 2
-                highest_almost_end_index = coord_index + 1
-                end_found = False
-                while coord_dict[tid][counter][0] - coord_dict[tid][coord_index][0] < 10000 and not coord_dict[tid][counter][1] in ["start","almost_start"]:
-                    if coord_dict[tid][counter][1] == 'end':
-                        candidate_loci[tid].append((coord_dict[tid][coord_index][0],coord_dict[tid][counter][0]))
-                        end_found = True
-                        break
-                    elif counter + 1 == len(coord_dict[tid]):
-                        break
-                    elif coord_dict[tid][counter][1] == 'almost_end':
-                        highest_almost_end_index = counter
-                    counter = counter + 1
-                if not end_found:
-                    candidate_loci[tid].append((coord_dict[tid][coord_index][0],coord_dict[tid][highest_almost_end_index][0]))
-            elif coord_dict[tid][coord_index][1] == "almost_start" and coord_dict[tid][coord_index - 1][1] in ['end','almost_end']:
-                counter = coord_index + 1
-                end_found = False
-                almost_end_found = False
-                while coord_dict[tid][counter][0] - coord_dict[tid][coord_index][0] < 10000 and not coord_dict[tid][counter][1] in ["start","almost_start"]:
-                    if coord_dict[tid][counter][1] == 'end':
-                        candidate_loci[tid].append((coord_dict[tid][coord_index][0],coord_dict[tid][counter][0]))
-                        end_found = True
-                        break
-                    elif counter + 1 == len(coord_dict[tid]):
-                        break
-                    elif coord_dict[tid][counter][1] == 'almost_end':
-                        highest_almost_end_index = counter
-                        almost_end_found = True
-                    counter = counter + 1
-                if almost_end_found and not end_found:
-                    candidate_loci[tid].append((coord_dict[tid][coord_index][0],coord_dict[tid][highest_almost_end_index][0]))
-            if len(candidate_loci[tid]) > 0:
-                largest_end = candidate_loci[tid][-1][1]
-
-genome_dict = {}
-genome_list = open(target_genome).read().split('>')[1:]
-for seq in genome_list:
-    lines = seq.split('\n')
-    genome_dict[lines[0]] = "".join(lines[1:])
-
-
-candidate_loci_seqs = {}
-candidate_loci_fasta = open('candidate_loci.fasta','w')
-for tid in candidate_loci:
-    scaf_seqlen = len(genome_dict[tid])
-    for locus in candidate_loci[tid]:
-        if locus[0] > args.buffer and args.buffer + locus[1] < scaf_seqlen:
-            locus_seq = genome_dict[tid][locus[0] - args.buffer : locus[1] + args.buffer]
-        elif locus[0] <= args.buffer and args.buffer + locus[1] < scaf_seqlen:
-            locus_seq = genome_dict[tid][: locus[1] + args.buffer]
-        elif args.buffer + locus[1] >= scaf_seqlen and locus[0] > args.buffer:
-            locus_seq = genome_dict[tid][locus[0] - args.buffer :]
-        else:
-            locus_seq = genome_dict[tid][:]
-        candidate_loci_seqs[tid + "_" + str(locus[0]) + '-' + str(locus[1])] = locus_seq
-        candidate_loci_fasta.write('>' + tid + "_" + str(locus[0]) + '-' + str(locus[1]) + '\n' + locus_seq + '\n')
-candidate_loci_fasta.close()
-
-
-
-
-#These parameters will be needed for GeMoMa tblastn: tblastn -outfmt "6 std sallseqid score nident positive gaps ppos qframe sframe qseq sseq qlen slen salltitles"
+if args.annotator == "ABCENTH":
+    subprocess.call('python ' + program_dir +
+                    'HitTabFilter.py --tab tmpOrAnPipe.thammerin.tab > thammerin.unique.tab', shell = True)
+    subprocess.call('python ' + program_dir +
+                    'ParseHAPpyTable.py --tab thammerin.unique.tab > thammerin.unique_forABCENTH.tab', shell = True)
+    subprocess.call('python ' + program_dir +
+                    'ParseHAPpyTable.py --hmm_dir tmpOrAnPipeHMMs/ > clusterInfo.tab', shell = True)
+    subprocess.call('python ' + program_dir +
+                    'ABCENTH.py --table thammerin.unique_forABCENTH.tab --query_exon_info_table clusterInfo.tab --genome ' +
+                    target_genome + ' --log ABCENTH.log > ../ABCENTH.gtf',shell = True)
+else:
+    candidate_loci_dict = {}
+    if args.search_mode == 'exons':
+        file_key = "fullLenForHMM.fa.hmm.lenAdded.hmm"
+    else:
+        file_key = "lenAdded.hmm"
+    for locus in candidate_loci_fasta_list:
+        candidate_loci_dict[locus.split('\n')[0][1:]] = locus.split('\n')[1]
+    AnnotatorRunner.parse_loci('candidate_loci.fasta',candidate_loci_dict,"tmpOrAnPipeHMMs/","Clusters",
+                              thammerin,genewisedb, file_key = file_key, threads = args.threads,
+                              annotator = args.annotator,augustus_profile_dir = augustus_profile_dir,
+                              augustus_cfg = "--extrinsicCfgFile=" + program_dir + 'augustus_extrinsic.MP.cfg',
+                              augustus_species = args.augustus_species)
+    if 'augustus' in args.annotator:
+        subprocess.call('cat Clusters/*/augustus.gtf > HAPpy_augustus.gtf',shell = True)
+        subprocess.call('cat Clusters/*/augustus.pep > HAPpy_augustus.pep',shell = True)
+    if 'genewise' in args.annotator:
+        subprocess.call('cat Clusters/*/genewise.gtf > HAPpy_genewise.gtf',shell = True)
+        subprocess.call('cat Clusters/*/genewise.pep > HAPpy_genewise.pep',shell = True)

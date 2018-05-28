@@ -11,7 +11,7 @@ import threading
 import time
 
 def thammerin_for_parse_loci(hmm_file,hmm_dir,thammerin_path,candidate_loci_orfs_name):
-    results = subprocess.call(thammerin_path + " -p " + hmm_dir + "/" + hmm_file +
+    subprocess.call(thammerin_path + " -p " + hmm_dir + "/" + hmm_file +
                               " --frames_in " + candidate_loci_orfs_name + ' > thammerin_canloc_' +
                               hmm_file + '.tab', shell = True)
 
@@ -84,6 +84,8 @@ def annotate(annotator,hmm_dir,cluster_folder,output_dir,thammerin_hit_dict,gene
     hints_file = open(output_dir + "/" + cluster_folder+ '/augustus_hints.gff','a')
     loci_list = subprocess.check_output('grep ">" ' + output_dir + '/' + cluster_folder + '/candidate_loci.fasta',
                                         shell = True).split('\n')
+    while "" in loci_list:
+        loci_list.remove("")
     for raw_locus in loci_list:
         locus = raw_locus[1:]
         hit_annotation = genome.read_blast_csv("\n".join(thammerin_hit_dict[locus][cluster_folder]).replace('\t',','))

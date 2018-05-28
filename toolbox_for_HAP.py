@@ -87,8 +87,9 @@ def gff_adjust(gff_list,offset,new_locus = None):
     adjusted_lines = []
     for line in range(len(gff_list)):
         fields = gff_list[line].split('\t')
-        fields[3] = str(int(fields[3]) + offset)
-        fields[4] = str(int(fields[4]) + offset)
+        start,stop = fields[3],fields[4]
+        fields[3] = str(min([int(start) + offset,int(stop) + offset]))
+        fields[4] = str(max([int(start) + offset,int(stop) + offset]))
         if new_locus:
             fields[0] = new_locus  
         adjusted_lines.append('\t'.join(fields))

@@ -156,12 +156,20 @@ def find_candidate_loci(coord_dict, buffer_len, genome_file):
         for locus in candidate_loci[tid]:
             if locus[0] > buffer_len and buffer_len + locus[1] < scaf_seqlen:
                 locus_seq = genome_dict[tid][locus[0] - buffer_len : locus[1] + buffer_len]
+                locus_start = locus[0] - buffer_len
+                locus_stop = locus[1] + buffer_len
             elif locus[0] <= buffer_len and buffer_len + locus[1] < scaf_seqlen:
                 locus_seq = genome_dict[tid][: locus[1] + buffer_len]
+                locus_start = 0
+                locus_stop = locus[1] + buffer_len
             elif buffer_len + locus[1] >= scaf_seqlen and locus[0] > buffer_len:
                 locus_seq = genome_dict[tid][locus[0] - buffer_len :]
+                locus_start = locus[0] - buffer_len
+                locus_stop = scaf_seqlen
             else:
                 locus_seq = genome_dict[tid][:]
+                locus_start = 0
+                locus_stop = scaf_seqlen
             candidate_loci_seqs[tid + "_" + str(locus[0]) + '-' + str(locus[1])] = locus_seq
-            candidate_loci_fasta_list.append('>' + tid + "_" + str(locus[0]) + '-' + str(locus[1]) + '\n' + locus_seq + '\n')
+            candidate_loci_fasta_list.append('>' + tid + "_" + str(locus_start) + '-' + str(locus_stop) + '\n' + locus_seq + '\n')
     return candidate_loci_fasta_list

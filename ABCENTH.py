@@ -282,10 +282,10 @@ for locus in locus_dict.keys():
             working_name = [hit[0] +"coords" + locus + "-" + str(tstart),float(hit[11])]
             working_annotation = []
             #OK, now trying to recover first/last exon
-            if last_strand:
-                if last_strand == '-':
+            if strand:
+                if strand == '-':
                     me_is_start, me_is_stop = False,True
-                elif last_strand == '+':
+                elif strand == '+':
                     me_is_start,me_is_stop =  True,False
                 recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],eval(str(exon_num) + strand + "-1"),me_is_start,me_is_stop, [max((min((tend,tstart)) - 2000,max((last_tend,last_tstart)))),min((tend,tstart))])
             else:
@@ -324,10 +324,10 @@ for locus in locus_dict.keys():
                     else:
                         working_annotation[-1][2] = "I"
                     if strand == "+":
-                        exon_start_adjust = (3 - (last_endphase - ((3 - startphase)%3))) % 3
+                        exon_start_adjust = (last_endphase - startphase) % 3
                         working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust
                     elif strand == "-":
-                        exon_start_adjust = (3 - (endphase - ((3 - last_startphase)%3))) % 3
+                        exon_start_adjust = (endphase - last_startphase) % 3
                         working_annotation[-2][1] = working_annotation[-2][1] - exon_start_adjust
             else:
                 if strand == "+":
@@ -341,10 +341,10 @@ for locus in locus_dict.keys():
                     else:
                         working_annotation[-1][2] = "I"
                     if strand == "+":
-                        exon_start_adjust = (3 - (last_endphase - ((3 - startphase)%3))) % 3
+                        exon_start_adjust = (last_endphase - startphase) % 3
                         working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust
                     elif strand == "-":
-                        exon_start_adjust = (3 - (endphase - ((3 - last_startphase)%3))) % 3
+                        exon_start_adjust = (endphase - last_startphase) % 3
                         working_annotation[-2][1] = working_annotation[-2][1] - exon_start_adjust
                 print exontuples2gff(working_annotation, strand,working_name[0],locus)
                 working_annotation = []

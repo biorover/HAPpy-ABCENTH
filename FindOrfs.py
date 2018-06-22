@@ -25,7 +25,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 def orf_finder(sequence,startphase,stopphase,strand,expected_aa_len,length_variance,
-               search_coords = None, is_start = False, is_stop = False, hmm_profile = None):
+               search_coords = None, is_start = False, is_stop = False, hmm_profile = None,evalue='0.05'):
     """Finds all putative exons matching a given expected length and intron phase profile and \
     containing an open reading frame"""
     search_seq = sequence
@@ -69,10 +69,10 @@ def orf_finder(sequence,startphase,stopphase,strand,expected_aa_len,length_varia
                 if search_coords:
                     exon_coords[-1] = [exon_coords[-1][0] + search_coords[0],exon_coords[-1][1] + search_coords[0]]     
     if hmm_profile and len(exon_coords) > 0:
-        exon_coords = hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase)
+        exon_coords = hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase,evalue=evalue)
     return exon_coords
 
-def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase):
+def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase, evalue= "0.05"):
     orf_file = tempfile.NamedTemporaryFile('w')
     for coords_index in range(len(exon_coords)):
         nuc_seq = genome.Sequence(sequence[exon_coords[coords_index][0] - 1:exon_coords[coords_index][1]])
@@ -82,7 +82,7 @@ def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase):
         orf_file.write(">coords" + str(coords_index) + '\n' +
                        pep_seq + '\n' )
     orf_file.flush()
-    hmmout = subprocess.check_output('hmmsearch --max -E 0.1 ' + hmm_profile + ' ' + orf_file.name,
+    hmmout = subprocess.check_output('hmmsearch --max -E ' + evalue + ' ' + hmm_profile + ' ' + orf_file.name,
                                      shell = True).split('\n')
     found_hit = False
     for line in hmmout:

@@ -69,7 +69,7 @@ def parse_loci(candidate_loci_file,candidate_loci_seqs,hmm_dir,output_dir,thamme
         #locus_fasta.write('>' + locus + '\n' + candidate_loci_seqs[locus] + '\n')
         #locus_fasta.close()
         #starts prepping hints
-    for cluster_folder in os.listdir(output_dir):    
+    for cluster_folder in os.listdir(output_dir):
         threading.Thread(target= annotate, args = [annotator,hmm_dir,cluster_folder,output_dir,
                                                    thammerin_hit_dict,genewisedb_path,augustus_path,
                                                    hmmconvert_path, augustus_profile_dir, augustus_cfg,
@@ -122,9 +122,9 @@ def annotate(annotator,hmm_dir,cluster_folder,output_dir,thammerin_hit_dict,gene
             augprofstring = " --proteinprofile=" + augustus_profile_dir + '/' + cluster_folder.replace('.hmm.lenAdded','') + '.prfl '
         else:
             augprofstring = " "
-        print "running " + augustus_path + augprofstring + augustus_cfg + " --species=" + augustus_species + \
+        print("running " + augustus_path + augprofstring + augustus_cfg + " --species=" + augustus_species + \
                         " --hintsfile=" + output_dir + "/" + cluster_folder + \
-                        '/augustus_hints.gff '+ output_dir + '/' + cluster_folder + '/candidate_loci.fasta'
+                        '/augustus_hints.gff '+ output_dir + '/' + cluster_folder + '/candidate_loci.fasta')
         subprocess.call(augustus_path + augprofstring + augustus_cfg + " --species=" + augustus_species +
                         " --hintsfile=" + output_dir + "/" + cluster_folder +
                         '/augustus_hints.gff '+ output_dir + '/' + cluster_folder + '/candidate_loci.fasta >> ' +

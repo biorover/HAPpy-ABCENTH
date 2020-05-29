@@ -375,7 +375,7 @@ def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs
                                 kwargs = {'stdout':open(thmmerin_dir + '/' + file_root + '.tab','w')}
             ))
             threads_list[-1].start()
-        if threading.active_count() >= threads:
+        while threading.active_count() >= 2 + threads / 3:
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()

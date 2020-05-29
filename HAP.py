@@ -442,7 +442,7 @@ def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intr
         for cluster in locus_min_scores:
             score_copy = locus_min_scores[cluster][:]
             score_copy.sort()
-            locus_min_score[cluster] = score_copy[-1 * int(max_loci_per_cluster):]        
+            locus_min_scores[cluster] = score_copy[-1 * int(max_loci_per_cluster):]        
     candidate_locus_list = []
     for cluster in candidate_loci_dict:
         for seqname in candidate_loci_dict[cluster]:

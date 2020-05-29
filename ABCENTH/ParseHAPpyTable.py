@@ -14,8 +14,8 @@ if args.table:
         number_of_exons = fields[0].split('of')[1].split('phases')[0]
         start_phase = fields[0].split('phases')[1].split('and')[0]
         end_phase = fields[0].split('and')[1].split('.')[0]
-        aa_len = fields[0].split('_len_')[1]
-        print '\t'.join([cluster] + fields[1:] + [start_phase,end_phase,aa_len,exon_number,number_of_exons])
+        aa_len = fields[12]
+        print('\t'.join([cluster] + fields[1:] + [start_phase,end_phase,aa_len,exon_number,number_of_exons]))
 
 elif args.hmm_dir:
     for hmm_file in os.listdir(args.hmm_dir):
@@ -26,4 +26,4 @@ elif args.hmm_dir:
             start_phase = hmm_file.split('phases')[1].split('and')[0]
             end_phase = hmm_file.split('and')[1].split('.')[0]
             aa_len = open(args.hmm_dir + "/" + hmm_file).read().split('\n')[2].split()[1].replace('\r','')
-            print '\t'.join([cluster,exon_number,number_of_exons,start_phase,end_phase,aa_len,os.path.abspath(args.hmm_dir) + '/' + hmm_file])
+            print('\t'.join([cluster,exon_number,number_of_exons,start_phase,end_phase,aa_len,os.path.abspath(args.hmm_dir) + '/' + hmm_file]))

@@ -14,57 +14,13 @@
 
 
 import copy
-import io
+import StringIO
+from magot_smallfuncs import *
 
 import numpy
 
 verbose = True
 
-def tab2fasta(tab_file):
-    tabs = ensure_file(tab_file)
-    newlines = []
-    for line in tabs:
-        fields = line.replace('\n','').replace('\r','').split('\t')
-        newlines.append('>'+fields[0]+'\n'+fields[1])
-    return "\n".join(newlines)
-
-
-def fasta2tab(fasta_file):
-    fasta = ensure_file(fasta_file)
-    newlines = []
-    for line in fasta:
-        if line[0] == '>':
-            newlines.append(line[1:].replace('\n','').replace('\r','') + '\t')
-        else:
-            newlines[-1] = newlines[-1] + line.replace('\n','').replace('\r','')
-    return '\n'.join(newlines)
-
-
-def ensure_file(potential_file):
-    """takes an input that can be either a file location, opened file, or string, and returns an opened file or file like object.
-    Used to make downstream applications robust to different input types"""
-    if potential_file == None:
-        return None
-    elif type(potential_file).__name__ == "file":
-        return potential_file
-    else:
-        try:
-            return open(potential_file)
-        except IOError:
-            return StringIO.StringIO(potential_file)
-
-
-def read_to_string(potential_file):
-    """Tries to read "potential_file" into string- first as file location,
-    then file, then string."""
-    try:
-        output_string = open(potential_file).read().replace('\r','')
-    except IOError:
-        try:
-            output_string = potential_file.read().replace('\r','')
-        except AttributeError:
-            output_string = potential_file.replace('\r','')
-    return output_string
 
 def starjunc2gff(starjunc, output = 'string'):
     """parses junction file from STAR RNAseq aligner and returns an apollo-style gff3. Output can be "string", "list", or "print"."""
@@ -85,9 +41,9 @@ def starjunc2gff(starjunc, output = 'string'):
         gffline2 = '\t'.join([atts[0],'star','match_part',str(start1),str(stop1),atts[6], strands[int(atts[3])],'.','ID=' + ID + '-part1;Parent=' + ID])
         gffline3 = '\t'.join([atts[0],'star','match_part',str(start2),str(stop2),atts[6], strands[int(atts[3])],'.','ID=' + ID + '-part2;Parent=' + ID])
         if output == 'print':
-            print(gffline1)
-            print(gffline2)
-            print(gffline3)
+            print gffline1
+            print gffline2
+            print gffline3
         else:
             outlines.append(gffline1)
             outlines.append(gffline2)
@@ -99,7 +55,7 @@ def starjunc2gff(starjunc, output = 'string'):
     elif output == "print":
         pass
     else:
-        print("invalid output format")
+        print "invalid output format"
 
 
 def apollo2genome(apollo_gff):
@@ -166,7 +122,7 @@ def vulgar2gff(vulgarlist, feature_types=['match','match_part'],source='exonerat
 
 
 def read_exonerate(exonerate_output,annotation_set_to_modify = None,feature_types = ['match','match_part']):
-    #Reads an exonerate file with a little help from vulgar2gff.
+    #Reads an exonerate file with a little help from vulgar2gff. 
     if annotation_set_to_modify == None:
         annotation_set = AnnotationSet()
     else:
@@ -201,8 +157,8 @@ def read_exonerate(exonerate_output,annotation_set_to_modify = None,feature_type
     read_gff("\n".join(gfflines), annotation_set_to_modify = annotation_set)
     if annotation_set_to_modify == None:
         return annotation_set
-
-
+    
+    
 def write_longform_gff(annotation_set,keep_UTR_features = False):
     """returns gff string formated for compatability with Apollo genome annotation """
     gfflines = []
@@ -304,7 +260,7 @@ def write_longform_gff(annotation_set,keep_UTR_features = False):
                         if CDS_UTR_dict[i].split('\t')[2] == 'CDS' or keep_UTR_features:
                             gfflines.append(CDS_UTR_dict[i])
                 else:
-                    print('ERROR: currently only accepts AnnotationSets with gene format CDS/UTR -> transcript -> gene')
+                    print 'ERROR: currently only accepts AnnotationSets with gene format CDS/UTR -> transcript -> gene'
                     break
     return '\n'.join(gfflines)
 
@@ -331,7 +287,7 @@ def write_bed(annotation_set, columns = 12):
                             annotation = annotation_set.__dict__[attribute][annotationID]
                             bed_lines.append(annotation.get_bed(columns=columns))
     return '\n'.join(bed_lines)
-
+    
 
 
 def read_bed(bed, annotation_set_to_modify = None, parents_hierarchy = ['region_set'], base_features = 'region'):
@@ -354,8 +310,8 @@ def read_bed(bed, annotation_set_to_modify = None, parents_hierarchy = ['region_
         else:
             fields = line.split()
         if len(fields) < 3:
-            print("Error: line with fewer than three columns. First three BED columns are manditory.")
-            print(line)
+            print "Error: line with fewer than three columns. First three BED columns are manditory."
+            print line
             continue
         #Figures out ID
         if len(fields) > 3:
@@ -387,22 +343,22 @@ def read_bed(bed, annotation_set_to_modify = None, parents_hierarchy = ['region_
                     parent = ID + '-' + parents_hierarchy[parent_index + 1]
                 parent_ID = ID + '-' + parent_type
             annotation_set[ID] = ParentAnnotation(parent_ID, fields[0], parent_type, child_list = child_list, parent = None, strand = ".", annotation_set = None, other_attributes = {})
-
-
+    
+    
 
 
 
 def read_gff(gff,annotation_set_to_modify = None, base_features = ['CDS','match_part','similarity','region'],features_to_ignore = ['exon'],
     gff_version = "auto", parents_hierarchy = [], features_to_replace = [], IDfield = "ID", parent_field = "Parent", presets = None):
-    """Assumptions of file:
+    """Assumptions of file:    
     Relatively consistent, nothing crazy like mixed gff3 and gff2
-
+    
     If a parent's children are base features, they should NOT overlap. E.g. if your file has exons and CDS, only
     give CDS as base_features and give exons as features_to_ignore.
-
+    
     Although parent feature types may be used multiply in hierarchies, any given base feature
     will only be present in one hierarchy
-
+    
     If parent features are not represented by lines (e.g. minimal gff2 format or cegma), they
     can be inferred from defline attributes given in parents_hierarchy. It is expected that the order they
     are given is consistent with the hierarchy (e.g. ['mRNA','gene']). If an underscore is used in
@@ -496,7 +452,7 @@ def read_gff(gff,annotation_set_to_modify = None, base_features = ['CDS','match_
                         else:
                             try: defline_dict[defline_field.split()[0]] = defline_field.split()[1]
                             except:
-                                print(defline_field)
+                                print defline_field
                                 return None
                     elif version == 3:
                         defline_dict[defline_field.split('=')[0]] = defline_field.split('=')[1]
@@ -515,7 +471,7 @@ def read_gff(gff,annotation_set_to_modify = None, base_features = ['CDS','match_
             elif parent != None:
                 ID = parent + '-' + feature_type
             else:
-                ID = seqid + '-' + feature_type + fields[3]
+                ID = seqid + '-' + feature_type + fields[3]            
             #checks if ID already in annotation_set and adjusts ID if necessary
             if ID in allready_present_IDs:
                 try:
@@ -550,7 +506,7 @@ def read_gff(gff,annotation_set_to_modify = None, base_features = ['CDS','match_
                     if parent_feature_index != len(parents_hierarchy) - 1:
                         for parents_parent_feature in parents_hierarchy[parent_feature_index + 1:]:
                             if parents_parent_feature in defline_dict:
-                                parents_parent = defline_dict[parents_parent_feature]
+                                parents_parent = defline_dict[parents_parent_feature]                        
                     if not parent_feature_type in annotation_set.__dict__:
                         annotation_set.__dict__[parent_feature_type] = {}
                     if parent_feature_ID in annotation_set.__dict__[parent_feature_type]:
@@ -567,11 +523,11 @@ def read_gff(gff,annotation_set_to_modify = None, base_features = ['CDS','match_
                     try:
                         annotation_set[parent].child_list.append(ID)
                     except KeyError:
-                        print("""It seems that this line has a parent attribute but that that parent doesn't have a line itself nor
+                        print """It seems that this line has a parent attribute but that that parent doesn't have a line itself nor
                         does this line have a defline attribute that specifies a parent type. I'm afraid this function can't currently
-                        deal with that.""")
-                        print(ID)
-                        print(parent)
+                        deal with that."""
+                        print ID
+                        print parent
                         return None
             #fills other_attributes from defline
             for defline_attribute in defline_dict:
@@ -616,7 +572,7 @@ def read_blast_csv(blast_csv,annotation_set_to_modify = None,hierarchy = ['match
         setattr(annotation_set, feature_type, {})
     if find_truncated_locname:
         if annotation_set.genome == None:
-            print('"warning: find_truncated_locname" was set to true, but annotation set has no associated genome object so this cannot be done')
+            print '"warning: find_truncated_locname" was set to true, but annotation set has no associated genome object so this cannot be done'
             find_truncated_locname = False
         else:
             genome_seqids = annotation_set.genome.get_seqids()
@@ -670,7 +626,7 @@ def read_blast_csv(blast_csv,annotation_set_to_modify = None,hierarchy = ['match
             eval('annotation_set.' + feature_type)[ID] = BaseAnnotation(ID, seqid, coords, feature_type, parent, strand,
                                                                         other_attributes, annotation_set)
 
-
+            
     if annotation_set_to_modify == None:
         return annotation_set
 
@@ -681,7 +637,7 @@ class Genotype(tuple):
         self.phased = phased
         self.phase_group = phase_group
         self.qual = qual
-
+    
 
 class Variant():
     """individual variants from reference genome sequence. Can be SNPs or polymorphism"""
@@ -690,14 +646,14 @@ class Variant():
         self.ref_allele = ref_allele
         self.alt_alleles = alt_alleles
         self.genotypes = genotypes
-
+    
 
 class VariantSet(dict):
     """set of variants from reference genome sequence. Can be SNPs or polymorphism"""
     def __init__(self, genome = None, vcf_headers = None):
         self.genome = genome
         self.vcf_headers = vcf_headers
-
+    
 
 class AnnotationSet():
     """A set of annotations of a single genome. Each feature type (e.g. gene, transcript, exon, etc.)
@@ -710,7 +666,7 @@ class AnnotationSet():
         self.CDS = {}
         self.UTR = {}
         self.genome = genome
-
+    
     def __getitem__(self,item):
         all_dicts = {}
         for attribute in dir(self):
@@ -720,13 +676,13 @@ class AnnotationSet():
                 except:
                     pass
         return all_dicts[item]
-
+    
     def read_gff(self, gff, *args, **kwargs):
         kwargs["annotation_set_to_modify"] = self
         read_gff(gff, *args, **kwargs)
-
+    
     def get_seqid(self, seqid):
-        seqid_annotation_set = AnnotationSet()
+        seqid_annotation_set = AnnotationSet()        
         for attribute in dir(self):
             if type(eval("self." + attribute)) == dict:
                 setattr(seqid_annotation_set,attribute,{})
@@ -735,7 +691,7 @@ class AnnotationSet():
                     if feature_obj.seqid == seqid:
                         eval('seqid_annotation_set.' + feature_obj.feature_type)[feature] = feature_obj
         return seqid_annotation_set
-
+    
     def get_all_seqids(self):
         seqid_list = []
         for attribute in dir(self):
@@ -743,23 +699,23 @@ class AnnotationSet():
                 for feature in eval('self.'+ attribute):
                     seqid_list.append(eval('self.' + attribute)[feature].seqid)
         return list(set(seqid_list))
-
+    
     def read_exonerate(self, exonerate_output):
         read_exonerate(exonerate_output,annotation_set_to_modify = self)
-
+    
     def read_blast_csv(self, blast_csv, hierarchy = ['match','match_part'], source = 'blast', find_truncated_locname = False):
         read_blast_csv(blast_csv, annotation_set_to_modify = self, hierarchy = hierarchy, source = source, find_truncated_locname = find_truncated_locname)
-
+    
     def read_cegma_gff(self, cegma_gff):
         read_cegma_gff(cegma_gff, annotation_set_to_modify = self)
-
+    
     def get_fasta(self,feature,seq_type = "nucleotide",longest=False,genomic = False):
         fasta_list = []
         for annotation in eval('self.' + feature):
                 fasta_list.append(eval('self.' + feature)[annotation].get_fasta(seq_type = seq_type,longest = longest, genomic = genomic))
         return "\n".join(fasta_list)
-
-
+        
+    
 
 class BaseAnnotation():
     """Bottom-most level annotation on a genome, for example CDS, UTR, Match_part, etc. Anything that should have no children"""
@@ -777,7 +733,7 @@ class BaseAnnotation():
 
     def get_coords(self):
         return self.coords
-
+    
     def get_seq(self):
         try:
             if self.strand == '+' or self.strand == '.':
@@ -785,12 +741,12 @@ class BaseAnnotation():
             elif self.strand == '-':
                 return Sequence(self.annotation_set.genome.genome_sequence[self.seqid][self.coords[0]-1:self.coords[1]]).reverse_compliment()
             else:
-                print(self.ID + ' has invalid strand value "' + self.strand + '"')
+                print self.ID + ' has invalid strand value "' + self.strand + '"'
         except:
-            print("either base_annotation has not annotation_set, or annotation_set has no genome, or genome has no\
-            genome sequence, or genome sequence has no matching seqid, or coords are out of range on that seqid")
-            print(self.seqid)
-
+            print "either base_annotation has not annotation_set, or annotation_set has no genome, or genome has no\
+            genome sequence, or genome sequence has no matching seqid, or coords are out of range on that seqid"
+            print self.seqid
+    
     def get_gff(self, gff_format = "simple gff3"):
         if self.annotation_set != None:
             fields = ['seqid','source','feature_type','get_coords()[0]','get_coords()[1]','score','strand','phase']
@@ -803,7 +759,7 @@ class BaseAnnotation():
             if gff_format in ["simple gff3","extended gff3","apollo gff3"]:
                 defline = 'ID=' + self.ID
                 if self.parent != None:
-                    defline = defline + ';Parent=' + self.parent
+                    defline = defline + ';Parent=' + self.parent                
             if gff_format == "extended gff3":
                 for attribute in self.__dict__:
                     if type(self.__dict__[attribute]).__name__ == 'str' and not attribute in ['ID','Parent','score','strand','seqid','feature_type','phase','source']:
@@ -821,7 +777,7 @@ class BaseAnnotation():
                 return '\t'.join(fields_list).replace('\tCDS\t','\texon\t').replace('ID=','ID=ExonOf') + "\n" + '\t'.join(fields_list)
             else:
                 return '\t'.join(fields_list)
-
+    
 
 
 class ParentAnnotation():
@@ -837,7 +793,7 @@ class ParentAnnotation():
         self.strand = strand
         for attribute in other_attributes:
             setattr(self, attribute, other_attributes[attribute])
-
+    
     def get_coords(self):
         if len(self.child_list) > 0 and self.annotation_set != None:
             coords_list = []
@@ -848,10 +804,10 @@ class ParentAnnotation():
                 elif child_object.__class__.__name__ == 'BaseAnnotation':
                     coords_list = coords_list + list(child_object.coords)
                 else:
-                    print("for some reason you have children in ParentAnnotation " + self.ID + " which are neither \
-                    ParentAnnotation objects nor BaseAnnotation object. Get your act together")
+                    print "for some reason you have children in ParentAnnotation " + self.ID + " which are neither \
+                    ParentAnnotation objects nor BaseAnnotation object. Get your act together"
             return (min(coords_list),max(coords_list))
-
+    
     def get_fasta(self, seq_type = "nucleotide", longest=False, genomic = False, name_from = 'ID'):
         """Returns fasta of this annotation's sequence. If this feature has multiple subfeatures (e.g. this is a gene
         and it has multiple transcripts), the sequence of each subfeature will be an entry in the fasta string."""
@@ -870,8 +826,8 @@ class ParentAnnotation():
                         try:
                             child_dict[child_obj.coords] = child_obj.get_seq()
                         except AttributeError:
-                            print("ParentAnnotation has both ParentAnnotation and BaseAnnotation children!")
-                            print(self.ID)
+                            print "ParentAnnotation has both ParentAnnotation and BaseAnnotation children!"
+                            print self.ID
                         strand = child_obj.strand
                     children_in_correct_order = list(child_dict)
                     children_in_correct_order.sort()
@@ -884,7 +840,7 @@ class ParentAnnotation():
                     elif seq_type == "protein":
                         new_seq = Sequence("".join(seq_list)).translate()
                     else:
-                        print(seq_type + ' is not valid seq_type. Please specify "protein" or "nucleotide".')
+                        print seq_type + ' is not valid seq_type. Please specify "protein" or "nucleotide".'
                     fasta_list.append('>' + self.__dict__[name_from] + '\n' + new_seq)
                 else:
                     for child in self.child_list:
@@ -893,8 +849,8 @@ class ParentAnnotation():
                             if child_fasta != "":
                                 fasta_list.append(child_fasta)
                         except AttributeError:
-                            print("ParentAnnotation has both ParentAnnotation and BaseAnnotation children!")
-                            print(self.ID)
+                            print "ParentAnnotation has both ParentAnnotation and BaseAnnotation children!"
+                            print self.ID
                 if longest == True:
                     seqlens = {}
                     for seq in fasta_list:
@@ -907,7 +863,7 @@ class ParentAnnotation():
                         return ""
             else: return ""
         else: return ""
-
+    
     def get_gff(self, gff_format = "simple gff3"):
         """presets currently include: "simple gff3", "extended gff3", "gtf", "apollo gff3", "maker hint", and "augustus hint". Will eventually include more by request"""
         if self.annotation_set != None:
@@ -961,7 +917,7 @@ class ParentAnnotation():
                         lines_list.remove(line)
                         lines_list.append(line)
             return '\n'.join(lines_list)
-
+    
     def get_bed(self, columns = 12):
         """If children are base annotations, returns a bed-format line with the number of columns specified. Otherwise,
         returns bed-format lines for each child"""
@@ -977,9 +933,9 @@ class ParentAnnotation():
                                          child_object.get_coords()[1] - child_object.get_coords()[0] + 1))
             if child_blocks != []:
                 if lines_list != []:
-                    print("Weirdo feature " + self.ID + ", it has both ParentAnnotation and BaseAnnotation children.\
+                    print "Weirdo feature " + self.ID + ", it has both ParentAnnotation and BaseAnnotation children.\
                     I'll output the line for this feature and it's ParentAnnotation children, but\
-                    something is probably wrong")
+                    something is probably wrong"
                 child_blocks.sort()
                 child_block_sizes = []
                 child_block_starts = []
@@ -995,7 +951,7 @@ class ParentAnnotation():
                         except AttributeError:
                             fields.append('.')
                     elif field_number > 11:
-                        print("Only 12 fields in bed format!")
+                        print "Only 12 fields in bed format!"
                     elif field_number == 9:
                         fields.append(str(len(child_block_sizes)))
                     elif field_number == 10:
@@ -1004,7 +960,7 @@ class ParentAnnotation():
                         fields.append(','.join(child_block_starts))
                 lines_list.append('\t'.join(fields))
             return "\n".join(lines_list)
-
+    
 
 
 class Sequence(str):
@@ -1020,7 +976,7 @@ class Sequence(str):
             except KeyError:
                 new_sequence_list.append('n')
         return Sequence(''.join(new_sequence_list))
-
+    
     def translate(self,library = {'TTT':'F','TTC':'F','TTA':'L','TTG':'L','CTT':'L','CTC':'L','CTA':'L','CTG':'L',
                                   'ATT':'I','ATC':'I','ATA':'I','ATG':'M','GTT':'V','GTC':'V','GTA':'V','GTG':'V',
                                   'TCT':'S','TCC':'S','TCA':'S','TCG':'S','CCT':'P','CCC':'P','CCA':'P','CCG':'P',
@@ -1049,7 +1005,7 @@ class Sequence(str):
                 if newseq[0] == 'X':
                     newseq = newseq[1:]
             return newseq
-
+    
     def get_orfs(self, longest = False, strand = 'both', from_atg = False):
         if len(self) > 3:
             orflist = []
@@ -1086,7 +1042,7 @@ class GenomeSequence(dict):
     def __init__(self,genome_sequence = None, truncate_names = False):
         #reads input file location, file, or string
         sequence_file = ensure_file(genome_sequence)
-        #breaks sequence into sequence blocks (contigs, scaffolds, or chromosomes), adds sequence
+        #breaks sequence into sequence blocks (contigs, scaffolds, or chromosomes), adds sequence 
         #   from each block as dictionary entry into self with block name as key.
         if sequence_file != None:
             seq = ""
@@ -1133,10 +1089,10 @@ class Genome():
                 self.annotations.genome = self
         else:
             self.annotations = annotations
-
+    
     def get_scaffold_fasta(self, seqid):
         return '>' + seqid + '\n' + self.genome_sequence[seqid]
-
+    
     def get_genome_fasta(self, remove_spaces = False):
         fasta_list = []
         for seqid in self.genome_sequence:
@@ -1146,7 +1102,7 @@ class Genome():
                 fasta_header = seqid
             fasta_list.append('>' + fasta_header + '\n' + self.genome_sequence[seqid])
         return "\n".join(fasta_list)
-
+    
     def write_apollo_gff(self, seqid, suppress_fasta = False):
         if self.genome_sequence != None and self.annotations != None:
             try:
@@ -1160,8 +1116,8 @@ class Genome():
                 else:
                     return ""
         else:
-            print("genome object is either missing genome_sequence or annotations")
-
+            print "genome object is either missing genome_sequence or annotations"
+    
     def get_seqids(self, from_annotations = False):
         seqid_list = []
         warning = False
@@ -1174,22 +1130,22 @@ class Genome():
                     seqid_list.append(seqid)
                     warning = True
         if warning:
-            print("warning, some annotations possessed seqids not found in sequence dictionary")
+            print "warning, some annotations possessed seqids not found in sequence dictionary"
         return seqid_list
-
+    
     def read_exonerate(self, exonerate_output):
         if self.annotations != None:
             self.annotations.read_exonerate(exonerate_output)
         else:
             self.annotations = read_exonerate(exonerate_output)
             self.annotations.genome = self
-
+    
     def read_blast_csv(self, blast_csv, hierarchy = ['match','match_part'], source = 'blast', find_truncated_locname = False):
         if self.annotations == None:
             self.annotations = AnnotationSet()
             self.annotations.genome = self
         self.annotations.read_blast_csv(blast_csv, hierarchy = hierarchy, source = source, find_truncated_locname = find_truncated_locname)
-
+    
     def read_cegma_gff(self, cegma_gff):
         if self.annotations != None:
             self.annotations.read_cegma_gff(cegma_gff)
@@ -1203,10 +1159,10 @@ class Genome():
         else:
             self.annotations = read_gff(gff, *args, **kwargs)
             self.annotations.genome = self
-
+    
     def read_vcf(self, vcf):
         self.variants = read_vcf(vcf)
-
+    
 
 class position_dic(dict):
     def __init__(self, genome_sequence, dtype=bool):
@@ -1229,7 +1185,7 @@ class position_dic(dict):
                     self[seqid][position] = eval(fill_with)
             elif fill_type == "start":
                 self[seqid][coords[0] - 1] = eval(fill_with)
-
+    
     def count_from_annotations(self, annotation_set, feature):
         count_list = []
         for annotation in eval("annotation_set." + feature):
@@ -1251,7 +1207,7 @@ class position_dic(dict):
                     count1 = count1 + 1
             count_list.append([featureID,count0,count1])
         return count_list
-
+    
 
     def at_content(self, genome_sequence):
         for seqid in self:
@@ -1308,7 +1264,7 @@ class position_dic(dict):
                     elif type(output) == file:
                         output.write(seqid + '\t' + str(value) + '\n')
                     if window_start % 10000000 == 0 and verbose:
-                        print("processed " + seqid + " to position " + str(position))
+                        print "processed " + seqid + " to position " + str(position)
                 if output == "annotation_set":
                     if len(coords_list) > 0:
                         if len(coords_list[-1]) == 1:
@@ -1317,14 +1273,19 @@ class position_dic(dict):
                             ID = seqid + "-window" + str(coords[0])
                             annotation_set.region[ID] = BaseAnnotation(ID, seqid, tuple(coords), "region", annotation_set = annotation_set)
                 if verbose:
-                    print("processed " + seqid)
+                    print "processed " + seqid
                     if output == 'annotation_set':
                         for region in annotation_set.region:
                             if annotation_set.region[region].seqid == seqid:
-                                print(str(annotation_set.region[region].coords))
+                                print str(annotation_set.region[region].coords)                    
         if output == "dict":
             return new_dic
         elif output == "annotation_set":
             return copy.deepcopy(annotation_set)
         elif output == "coords":
             return coords_list
+
+
+
+
+

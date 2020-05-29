@@ -1,0 +1,11 @@
+name: happy
+channels:
+    - bioconda
+    - etetoolkit
+dependencies:
+    - python=3.*
+    - numpy
+    - ete3
+    - hmmer=3.*
+    - wise2
+    - mafft=7.*

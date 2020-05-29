@@ -12,6 +12,8 @@ import genome_fork as genome
 import argparse
 import os
 import tempfile
+import shlex
+import sys
 
 parser = argparse.ArgumentParser(description='thammerin: Pronounced Tee hammerin\', so pronounced identically \
                                  to tHMMERn but does NOT infinge on the copyrights of HHMI (HMMER) or \
@@ -45,6 +47,7 @@ parser.add_argument('--frames_out' , default = False, help = 'File to save the t
                     if you want to keep them (e.g. to use for a later run)')
 parser.add_argument('--frames_in', default = False, help = 'File with frames from a previous run (will not re-make frames)')
 parser.add_argument('--hmmsearch_log', default = False, help = 'Log file to write the full hmmsearch results to (optional)')
+parser.add_argument('--add_lengths', default = True,type = bool, help = 'Whether to add qlen and slen to stdout (default = True)')
 
 args=parser.parse_args()
 
@@ -86,7 +89,8 @@ else:
     frames_file = frame_fasta.name
 
 output_tempfile = tempfile.NamedTemporaryFile()
-subprocess.call(hmmsearch + " --domtblout " + output_tempfile.name + " " + args.hmm_file + " " + frames_file +" >> tmp_thammer_log.log", shell=True)
+output_logfile = tempfile.NamedTemporaryFile()
+subprocess.call(shlex.split(hmmsearch + " --domtblout " + output_tempfile.name + " " + args.hmm_file + " " + frames_file ), stdout = output_logfile)
 hmmresults = open(output_tempfile.name)
 for line in hmmresults:
     if line[0] != "#":
@@ -103,11 +107,19 @@ for line in hmmresults:
                 strand = "-"
                 start = frame_offset - 3 * orf_start - 3 * int(fields[17]) + 3
                 stop = frame_offset - 3 * orf_start - 3 * int(fields[18]) + 1
-            print "\t".join([fields[3],tname.split('_frameOffset-')[0],fields[21],'.','.',strand,
-                             fields[15],fields[16],str(start),str(stop),fields[12],fields[13]])
-
+            if args.add_lengths:
+                fields[13] += "\t" + fields[5] + '\t' + fields[2]
+            sys.stdout.write("\t".join([fields[3],tname.split('_frameOffset-')[0],fields[21],'.','.',strand,
+                             fields[15],fields[16],str(start),str(stop),fields[12],fields[13]]) + '\n')
+if args.hmmsearch_log:
+    output_logfile.flush()
+    hmmsearch_log = open(args.hmmsearch_log,'w')
+    for line in open(output_logfile):
+        hmmsearch_log.write(line)
+    hmmsearch_log.close()
 try:
     output_tempfile.close()
+    output_logfile.close()
     frame_fasta.close()
 except:
     pass

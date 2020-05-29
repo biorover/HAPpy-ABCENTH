@@ -377,8 +377,8 @@ def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs
             threads_list[-1].start()
         if threading.active_count() >= threads:
             time.sleep(0.1)
-        for thread in threads_list:
-            thread.join()
+    for thread in threads_list:
+        thread.join()
 
 def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intron):
     candidate_loci_dict = {}

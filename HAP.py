@@ -325,7 +325,7 @@ def build_hmms(fasta_dir,out_dir,path_dict,mafft_options,threads,pre_aligned = F
                                  kwargs = {'stdout':open(fasta_dir + "/" + file_root + ".mafft",'w'),'stderr':open('/dev/null','w')})
             )
             threads_list[-1].start()
-            if threading.active_count() >= threads:
+            while threading.active_count() >= threads:
                 time.sleep(0.1)
         for thread in threads_list:
             thread.join()
@@ -342,7 +342,7 @@ def build_hmms(fasta_dir,out_dir,path_dict,mafft_options,threads,pre_aligned = F
                         kwargs = {'stderr':open('/dev/null','w'),'stdout':open('/dev/null','w')})
         )
         threads_list[-1].start()
-        if threading.active_count() >= threads:
+        while threading.active_count() >= threads:
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()
@@ -442,7 +442,7 @@ def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intr
         for cluster in locus_min_scores:
             score_copy = locus_min_scores[cluster][:]
             score_copy.sort()
-            locus_min_scores[cluster] = score_copy[-1 * int(max_loci_per_cluster):]        
+            locus_min_scores[cluster] = score_copy[-1 * int(max_loci_per_cluster):]
     candidate_locus_list = []
     for cluster in candidate_loci_dict:
         for seqname in candidate_loci_dict[cluster]:
@@ -522,7 +522,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
                                                     'stderr':err_log_file}
         ))
         threads_list[-1].start()
-        if threading.active_count() >= threads:
+        while threading.active_count() >= threads:
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()
@@ -557,7 +557,7 @@ def annotate_with_genewise(genome_file,buffer,candidate_loci_file,path_dict,hmm_
         threads_list.append(threading.Thread(target = run_genewisedb,
             args = [genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,out_dir]))
         threads_list[-1].start()
-        if threading.active_count() >= threads:
+        while threading.active_count() >= threads:
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()

@@ -646,7 +646,7 @@ def main(args):
     if "augustus" in args.annotator:
         os.makedirs(args.output_dir + '/augustus')
         if args.augustus_use_hmm_hints:
-            hmm_hints = args.output_dir + '/thammerin_hits.tsv'
+            hmm_hints = hit_table
         else:
             hmm_hints = None
         if args.augustus_extrinsic:

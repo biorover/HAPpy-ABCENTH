@@ -121,7 +121,7 @@ def run_genewisedb(genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,
     seq_file_file = open(seq_file).read().split('\n')
     seqname = seq_file_file[0][1:-1]
     tmp_fasta.write(bytes('>' + seqname + '\n','UTF-8'))
-    tmp_fasta.write("".join(seq_file_file[1:][start:end]))
+    tmp_fasta.write(bytes("".join(seq_file_file[1:][start:end]),'UTF-8'))
     #char = seq_file_file.read(1)
     #counter = 1
     hmm_name = hmm3_file.split('/')[-1].replace('.hmm','')

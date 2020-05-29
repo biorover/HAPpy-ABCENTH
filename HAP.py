@@ -437,12 +437,12 @@ def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intr
             del candidate_loci_dict[cluster][seqname][locus_num]
         candidate_loci_dict[cluster][seqname].append(new_locus)
         candidate_loci_dict[cluster][seqname].sort()
-        if len(locus_min_scores) < max_loci_per_cluster:
-            locus_min_scores[cluster].append(new_locus[5])
-        elif new_locus[5] > min(locus_min_scores[cluster]):
-            locus_min_scores[cluster].sort()
-            locus_min_scores[cluster] = locus_min_scores[cluster][:-1]
-            locus_min_scores[cluster].append(new_locus[5])
+        locus_min_scores[cluster].append(new_locus[5])
+    if max_loci_per_cluster < float('inf'):
+        for cluster in locus_min_scores:
+            score_copy = locus_min_scores[cluster][:]
+            score_copy.sort()
+            locus_min_score[cluster] = score_copy[-1 * int(max_loci_per_cluster):]        
     candidate_locus_list = []
     for cluster in candidate_loci_dict:
         for seqname in candidate_loci_dict[cluster]:
@@ -620,7 +620,7 @@ def main(args):
         hmm_dir = args.hmm_dir
     elif args.hmm or args.fasta_dir or args.protein_seqs or args.annotations:
         hmm_dir = args.output_dir + '/hmms'
-    if args.hmm_dir or args.hmm or args.fasta_dir or args.protein_seqs or args.annotations:
+    if (args.hmm_dir or args.hmm or args.fasta_dir or args.protein_seqs or args.annotations) and not args.hit_table:
         run_thammerin(hmm_dir,args.target_genome,args.output_dir + '/thammerin_results',
                   args.threads,path_dict,args.genome_orfs,args.output_dir,args.evalue)
     if args.hit_table:

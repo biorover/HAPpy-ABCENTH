@@ -1,13 +1,5 @@
 #!/usr/bin/env python
 
-####
-#
-# features to add:
-# -gene-location aware candidate locus parsing
-# -phase-aware genewise analysis
-#
-####
-
 import sys
 import os
 import shutil
@@ -25,6 +17,20 @@ import shlex
 import tempfile
 
 
+def happy_logo():
+    return """            _______  _______                    _
+|\     /|(  ___  )(  ____ )                  ( )
+| )   ( || (   ) || (    )|                  | |
+| (___) || (___) || (____)|                  | |
+|  ___  ||  ___  ||  _____) _______          | |
+| (   ) || (   ) || (      (  ____ )|\     /|(_)
+| )   ( || )   ( || )  _   | (    )|( \   / ) _
+|/     \||/     \||/  (_)  | (____)| \ (_) / (_)
+|  _____)  \   /
+| (         ) (
+| )         | |
+|/          \_/
+\n"""
 
 parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFormatter,
                                  usage = "\npython HAP.py [optional arguments] --genome <genome.fa> " +
@@ -33,19 +39,7 @@ parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFo
                                  "--protein_seqs <proteins.fa>", "--hmm <proteins.hmm>", "--fasta_dir <fasta_directory/>",
                                  "--alignment_dir <alignment_directory/>","--hmm_dir <hmm_directory/> [--augustus_profile_dir <prfl_directory>]"])
                                  + ' > output.gtf',
-                                 description= """            _______  _______                    _
-  |\     /|(  ___  )(  ____ )                  ( )
-  | )   ( || (   ) || (    )|                  | |
-  | (___) || (___) || (____)|                  | |
-  |  ___  ||  ___  ||  _____) _______          | |
-  | (   ) || (   ) || (      (  ____ )|\     /|(_)
-  | )   ( || )   ( || )  _   | (    )|( \   / ) _
-  |/     \||/     \||/  (_)  | (____)| \ (_) / (_)
-                             |  _____)  \   /
-                             | (         ) (
-                             | )         | |
-                             |/          \_/
-  \n""" + "Pipeline for annotating genes in a genome using homologous sequences \
+                                 description= happy_logo() + "Pipeline for annotating genes in a genome using homologous sequences \
 from a related species. \n\nProgram dependencies: \
 python, mafft, hmmer suite v3, ete3 python library, and genewise. \n\nHAP.py can \
 be run with a single set of related genes, multiple predefined clusters of \
@@ -103,6 +97,8 @@ addl_args.add_argument('--max_intron_length', default = 20000,type = int, help =
 run_args.add_argument('--augustus_extrinsic', default = None, help = 'augustus extrinsic config file')
 run_args.add_argument('--augustus_hints', default = None, help = 'gff file of hints to pass to augustus for annotation')
 run_args.add_argument('--augustus_use_hmm_hints', default = True, help = 'Pass thmmerin hits to augustus for annotation')
+addl_args.add_argument('--initial_search_tool',defualt = 'thammerin',help = 'Search tool for initial identification of candidate loci. \
+                        Accepts "thammerin" (default) or "diamond".')
 
 args = parser.parse_args()
 
@@ -177,6 +173,8 @@ def set_program_paths(path_list = None):
     path_dict['thammerin'] = path_dict['program_dir'] + 'thammerin.py'
     path_dict['augustus'] = "augustus"
     path_dict['genewisedb'] = "genewisedb"
+    path_dict['diamond'] = 'diamond'
+    path_dict['hmmemit'] = 'hmmemit'
     if path_list:
         for line in path_list.split(','):
             exec("path_dict[" + line.replace('=',']='))
@@ -381,6 +379,25 @@ def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs
     for thread in threads_list:
         thread.join()
 
+def emit_hmm_consensi(hmm_dir,out_dir,path_dict):
+    hmm_files = os.listdir(hmm_dir)
+    for hmm in hmm_files:
+        subprocess.call(shlex.split(path_dict['hmmemit'] + ' -c ' + hmm_dir + '/' +
+                                    hmm),stdout = open(hmm.replace('.hmm','') + '.consensus.fa','w'))
+
+def build_diamond_dbs(fasta_dir,out_dir,path_dict,threads):
+    threads_list = []
+    for fasta in os.list_dir(fasta_dir):
+        file_root = ".".join(fasta.split('.')[:-1])
+        threads_list.append(threading.Thread(target = subprocess.call,
+            args = [shlex.split(path_dict[diamond] + ' makedb --in ' + fasta_dir + '/' +
+            fasta + ' -d ' + out_dir + '/' + file_root)]))
+        threads_list[-1].start()
+        while threading.active_count() >= threads:
+            time.sleep(0.1)
+    for thread in threads_list:
+        thread.join()
+
 def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intron):
     candidate_loci_dict = {}
     locus_min_scores = {}
@@ -530,7 +547,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
     master_augustus_file = open(out_dir + '/all_augustus_predictions.gff','w')
     for out_file in os.listdir(out_dir):
         if ".aug.gff" in out_file:
-            gene_id_root = out_file.replace('aug.gff')
+            gene_id_root = out_file.replace('aug.gff','')
             for line in open(out_dir + '/' + out_file):
                 if "\tCDS\t" in line:
                     master_augustus_file.write(line.replace(' "g',' "' + gene_id_root))
@@ -573,6 +590,8 @@ def annotate_with_genewise(genome_file,buffer,candidate_loci_file,path_dict,hmm_
 
 
 def main(args):
+    sys.stderr.write(happy_logo())
+    sys.stderr.write('called as "' + " ".join(sys.argv) + '"\n')
     path_dict = set_program_paths(args.program_filepaths)
     args_check(args)
     if os.path.isdir(args.output_dir):
@@ -583,19 +602,8 @@ def main(args):
     os.makedirs(args.output_dir + '/clusters')
     os.makedirs(args.output_dir + '/hmms')
     os.makedirs(args.output_dir + '/thammerin_results')
-    sys.stderr.write("""            _______  _______                    _
-  |\     /|(  ___  )(  ____ )                  ( )
-  | )   ( || (   ) || (    )|                  | |
-  | (___) || (___) || (____)|                  | |
-  |  ___  ||  ___  ||  _____) _______          | |
-  | (   ) || (   ) || (      (  ____ )|\     /|(_)
-  | )   ( || )   ( || )  _   | (    )|( \   / ) _
-  |/     \||/     \||/  (_)  | (____)| \ (_) / (_)
-                             |  _____)  \   /
-                             | (         ) (
-                             | )         | |
-                             |/          \_/
-\n""")
+    run_log = open(args.output_dir + '/happy_run_log.out','w')
+    run_log.write('HAPp called as "' + " ".join(sys.argv) + '"\n')
     if args.annotations:
         annotations2fl(args.annotations,args.ref_genome,args.output_dir + '/flprots.fa')
     if args.protein_seqs:
@@ -666,3 +674,21 @@ def main(args):
 
 if __name__ == "__main__":
     main(args)
+
+
+####
+#
+# features to add:
+# -gene-location aware candidate locus parsing
+# -phase-aware genewise analysis
+# -automatic extension of candidate loci based on genewise hits
+# -genewise result filtering
+# -augustus result filtering
+# -add diamond support
+# -add exonerate support
+# -add funtion to generate augustus profiles
+#
+#Stretch goals:
+# -function to check for and report frameshifts using genewise/exonerate matches
+#
+####

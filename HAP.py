@@ -97,7 +97,7 @@ addl_args.add_argument('--max_intron_length', default = 20000,type = int, help =
 run_args.add_argument('--augustus_extrinsic', default = None, help = 'augustus extrinsic config file')
 run_args.add_argument('--augustus_hints', default = None, help = 'gff file of hints to pass to augustus for annotation')
 run_args.add_argument('--augustus_use_hmm_hints', default = True, help = 'Pass thmmerin hits to augustus for annotation')
-addl_args.add_argument('--initial_search_tool',defualt = 'thammerin',help = 'Search tool for initial identification of candidate loci. \
+addl_args.add_argument('--initial_search_tool',default = 'thammerin',help = 'Search tool for initial identification of candidate loci. \
                         Accepts "thammerin" (default) or "diamond".')
 
 args = parser.parse_args()

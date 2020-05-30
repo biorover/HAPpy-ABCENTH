@@ -119,7 +119,7 @@ def run_genewisedb(genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,
     subprocess.call(shlex.split(hmmconvert_path + ' -2 ' + hmm3_file),stdout = tmp_hmm,stderr = open('/dev/null','w'))
     tmp_hmm.flush()
     seq_file_file = open(seq_file).read().split('\n')
-    seqname = seq_file_file[0][1:-1]
+    seqname = seq_file_file[0][1:]
     tmp_fasta.write(bytes('>' + seqname + '\n','UTF-8'))
     tmp_fasta.write(bytes("".join(seq_file_file[1:])[start:end],'UTF-8'))
     #char = seq_file_file.read(1)

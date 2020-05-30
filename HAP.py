@@ -98,7 +98,7 @@ run_args.add_argument('--cluster_mafft_options', default = '--globalpair --maxit
                     within clusters using mafft (default = "--globalpair --maxiterate 1000")')
 addl_args.add_argument('--max_loci_per_cluster', default = float('inf') , type = float,
                         help = 'maximum number of candidate loci to annotate per cluster (default = inf)')
-addl_args.add_argument('--max_intron_length', default = 20000,help = 'maximum length of potential introns (used to decide if hits from\
+addl_args.add_argument('--max_intron_length', default = 20000,type = int, help = 'maximum length of potential introns (used to decide if hits from\
                        the same cluster on the same sequence are a single locus or two seperate loci; default = 200000)')
 run_args.add_argument('--augustus_extrinsic', default = None, help = 'augustus extrinsic config file')
 run_args.add_argument('--augustus_hints', default = None, help = 'gff file of hints to pass to augustus for annotation')

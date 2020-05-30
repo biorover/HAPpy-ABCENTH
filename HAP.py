@@ -154,7 +154,7 @@ def run_genewisedb(genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,
                     qend = max([int(fields[3]),int(fields[4])])
                     fields[3] = str(qstart + start)
                     fields[4] = str(qend + start)
-                    hit_suffix = fields[8].split('-')[-1][:-1]
+                    hit_suffix = fields[8].split('-')[-1]
                     fields[8] = 'gene_id ' + hit_name + '-' + hit_suffix + ';transcript_id ' + hit_name + '-' + hit_suffix + '-RA\n'
                     out_file.write("\t".join(fields))
         out_file.close()
@@ -530,8 +530,10 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
     master_augustus_file = open(out_dir + '/all_augustus_predictions.gff','w')
     for out_file in os.listdir(out_dir):
         if ".aug.gff" in out_file:
+            gene_id_root = out_file.replace('aug.gff')
             for line in open(out_dir + '/' + out_file):
-                master_augustus_file.write(line)
+                if "\tCDS\t" in line:
+                    master_augustus_file.write(line.replace(' "g',' "' + gene_id_root))
     master_augustus_file.close()
     log_file.close()
     err_log_file.close()

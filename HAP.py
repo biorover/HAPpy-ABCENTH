@@ -15,21 +15,22 @@ import copy
 import threading
 import shlex
 import tempfile
+from collections import defaultdict,deque
 
 
 def happy_logo():
     return """            _______  _______                    _
-|\     /|(  ___  )(  ____ )                  ( )
-| )   ( || (   ) || (    )|                  | |
-| (___) || (___) || (____)|                  | |
-|  ___  ||  ___  ||  _____) _______          | |
-| (   ) || (   ) || (      (  ____ )|\     /|(_)
-| )   ( || )   ( || )  _   | (    )|( \   / ) _
-|/     \||/     \||/  (_)  | (____)| \ (_) / (_)
-|  _____)  \   /
-| (         ) (
-| )         | |
-|/          \_/
+  |\     /|(  ___  )(  ____ )                  ( )
+  | )   ( || (   ) || (    )|                  | |
+  | (___) || (___) || (____)|                  | |
+  |  ___  ||  ___  ||  _____) _______          | |
+  | (   ) || (   ) || (      (  ____ )|\     /|(_)
+  | )   ( || )   ( || )  _   | (    )|( \   / ) _
+  |/     \||/     \||/  (_)  | (____)| \ (_) / (_)
+                             |  _____)  \   /
+                             | (         ) (
+                             | )         | |
+                             |/          \_/
 \n"""
 
 parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFormatter,
@@ -99,6 +100,11 @@ run_args.add_argument('--augustus_hints', default = None, help = 'gff file of hi
 run_args.add_argument('--augustus_use_hmm_hints', default = True, help = 'Pass thmmerin hits to augustus for annotation')
 addl_args.add_argument('--initial_search_tool',default = 'thammerin',help = 'Search tool for initial identification of candidate loci. \
                         Accepts "thammerin" (default) or "diamond".')
+run_args.add_argument('--diamond_options',default = "--very-sensitive", help = 'Additional arguments to pass to the diamond aligner (if using diamond instead of thammerin). \
+                      default = "--very-sensitive"')
+run_args.add_argument('--exonerate_options',default = '--percent 10',
+                        help = 'Additional arguments to pass to exonerate protein2genome (if using exonerate for annotation). \
+                        default = "--percent 10"')
 
 args = parser.parse_args()
 
@@ -118,23 +124,12 @@ def run_genewisedb(genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,
     seqname = seq_file_file[0][1:]
     tmp_fasta.write(bytes('>' + seqname + '\n','UTF-8'))
     tmp_fasta.write(bytes("".join(seq_file_file[1:])[start:end],'UTF-8'))
-    #char = seq_file_file.read(1)
-    #counter = 1
     hmm_name = hmm3_file.split('/')[-1].replace('.hmm','')
-    #while char:
-    #    char = seq_file_file.read(1)
-    #    if counter >= start:
-    #        tmp_fasta.write(bytes(char,'UTF-8'))
-    #    if counter > end:
-    #        break
-    #    if char != '/n':
-    #        counter += 1
     tmp_fasta.flush()
     genewise_result = subprocess.check_output(shlex.split(genewisedb_path +
                                 ' -cut 10 -gff -hmmer ' + tmp_hmm.name + ' ' + tmp_fasta.name),
                                 stderr = open('/dev/null')).decode('utf-8')
     hit_name = hmm_name + '_hitOn_' + seqname + '_' + str(start) + '-' + str(end)
-    #print(genewise_result)
     if "GeneWise\tmatch\t" in genewise_result:
         out_file = open(out_dir + '/' + hit_name + '.genewise.gff','w')
         for line in genewise_result.split('\n'):
@@ -154,6 +149,70 @@ def run_genewisedb(genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,
                     fields[8] = 'gene_id ' + hit_name + '-' + hit_suffix + ';transcript_id ' + hit_name + '-' + hit_suffix + '-RA\n'
                     out_file.write("\t".join(fields))
         out_file.close()
+
+def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options):
+    tmp_fasta = tempfile.NamedTemporaryFile()
+    tmp_out = tempfile.TemporaryFile()
+    seq_file_file = open(seq_file).read().split('\n')
+    seqname = seq_file_file[0][1:]
+    tmp_fasta.write(bytes('>' + seqname + '\n','UTF-8'))
+    tmp_fasta.write(bytes("".join(seq_file_file[1:])[start:end],'UTF-8'))
+    tmp_fasta.flush()
+    query_name = ".".join(query_fasta.split('/')[-1].split('.')[:-1])
+    exonerate_result = subprocess.check_output(shlex.split(exonerate_path +
+                                ' --model protein2genome --showtargetgff -q ' + query_fasta + ' -t ' + tmp_fasta.name + ' ' + exonerate_options),
+                                stderr = open('/dev/null')).decode('utf-8')
+    hit_name = hmm_name + '_hitOn_' + seqname + '_' + str(start) + '-' + str(end)
+    if "GeneWise\tmatch\t" in genewise_result:
+        out_file = open(out_dir + '/' + hit_name + '.genewise.gff','w')
+        for line in genewise_result.split('\n'):
+            fields = line.split('\t')
+            if len(fields) > 8:
+                if fields[2] == 'match':
+                    score = fields[5]
+                if fields[2] in ['cds','intron']:
+                    if fields[2] == 'cds':
+                        fields[2] = 'CDS'
+                    fields[5] = score
+                    qstart = min([int(fields[3]),int(fields[4])])
+                    qend = max([int(fields[3]),int(fields[4])])
+                    fields[3] = str(qstart + start)
+                    fields[4] = str(qend + start)
+                    hit_suffix = fields[8].split('-')[-1]
+                    fields[8] = 'gene_id ' + hit_name + '-' + hit_suffix + ';transcript_id ' + hit_name + '-' + hit_suffix + '-RA\n'
+                    out_file.write("\t".join(fields))
+        out_file.close()
+
+def translate_genome(genome_fasta,out_file,min_orf_size):
+    target_nucdb = genome.Genome(genome_fasta)
+    frame_fasta = open(out_file,'w')
+    for seq_id in target_nucdb.genome_sequence:
+        frameonef = genome.Sequence(target_nucdb.genome_sequence[seq_id])
+        frameoner = genome.Sequence(target_nucdb.genome_sequence[seq_id]).reverse_compliment()
+        frames = [frameonef,genome.Sequence(frameonef[1:]), genome.Sequence(frameonef[2:]),
+                  frameoner, genome.Sequence(frameoner[1:]),genome.Sequence(frameoner[2:])]
+        fasta_list = []
+        for frame_num in (0,1,2,3,4,5):
+            frame = frames[frame_num]
+            if frame_num < 3:
+                frame_offset = frame_num
+            else:
+                frame_offset = len(frameonef) - frame_num + 3
+            orfs = frame.translate(trimX = False).split('*')
+            last_orf_end = 0
+            for orf in orfs:
+                orf_start = last_orf_end
+                last_orf_end = last_orf_end + 1 + len(orf)
+                if len(orf) > min_orf_size:
+                    fasta_list.append('>' + seq_id + "_frameOffset-" + str(frame_offset) + "_orfStart-" + str(orf_start) +
+                                      '\n' + orf)
+        frame_fasta.write('\n'.join(fasta_list) + '\n')
+    frame_fasta.close()
+
+
+#joe = translate_genome(gfile,'/dev/null',20)
+#bob = time.time(); joe = translate_genome(gfile,'/dev/null',20); print(time.time() - bob)
+
 
 ####
 #
@@ -175,9 +234,10 @@ def set_program_paths(path_list = None):
     path_dict['genewisedb'] = "genewisedb"
     path_dict['diamond'] = 'diamond'
     path_dict['hmmemit'] = 'hmmemit'
+    path_dict['exonerate'] = 'exonerate'
     if path_list:
         for line in path_list.split(','):
-            exec("path_dict[" + line.replace('=',']='))
+            exec('path_dict["' + line.replace('=','"]="') + '"')
     return path_dict
 
 def args_check(args):
@@ -378,25 +438,55 @@ def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()
+    thammerin_hits = open(out_dir + '/thammerin_hits.tsv','w')
+    for thammerin_file in os.listdir(thmmerin_dir):
+        for line in open(thmmerin_dir + '/' + thammerin_file):
+            thammerin_hits.write(line)
+    thammerin_hits.close()
 
 def emit_hmm_consensi(hmm_dir,out_dir,path_dict):
     hmm_files = os.listdir(hmm_dir)
     for hmm in hmm_files:
+        out_file = open(out_dir + '/' + hmm.replace('.hmm','') + '.consensus.fa','w')
         subprocess.call(shlex.split(path_dict['hmmemit'] + ' -c ' + hmm_dir + '/' +
-                                    hmm),stdout = open(hmm.replace('.hmm','') + '.consensus.fa','w'))
+                                    hmm),stdout = out_file)
+        out_file.close()
 
 def build_diamond_dbs(fasta_dir,out_dir,path_dict,threads):
     threads_list = []
-    for fasta in os.list_dir(fasta_dir):
+    for fasta in os.listdir(fasta_dir):
         file_root = ".".join(fasta.split('.')[:-1])
         threads_list.append(threading.Thread(target = subprocess.call,
-            args = [shlex.split(path_dict[diamond] + ' makedb --in ' + fasta_dir + '/' +
-            fasta + ' -d ' + out_dir + '/' + file_root)]))
+            args = [shlex.split(path_dict['diamond'] + ' makedb --threads ' + str(threads) + ' --in ' + fasta_dir + '/' +
+            fasta + ' -d ' + out_dir + '/' + file_root)],kwargs = {'stderr':open('/dev/null','w'),'stdout':open('/dev/null','w')}))
         threads_list[-1].start()
-        while threading.active_count() >= threads:
+        while threading.active_count() > threads:
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()
+
+def run_diamond(query_peps,diamonddb,path_dict,threads,out_file_name,diamond_options,evalue):
+    diamond_hits = subprocess.check_output(shlex.split(path_dict['diamond'] + ' blastp ' + diamond_options + ' -f 6 sseqid qseqid pident length mismatch gapopen sstart send qstart qend evalue bitscore qlen slen --query '
+            + query_peps + ' --db ' + diamonddb + ' --evalue ' +  str(evalue) + ' --threads ' + str(threads)),stderr = open('/dev/null','w') ).decode('utf-8')
+    out_file = open(out_file_name,'w')
+    for line in diamond_hits.split('\n'):
+        fields = line.split('\t')
+
+        if len(fields) > 10:
+            tname = fields[1]
+            frame_offset = int(tname.split('_frameOffset-')[1].split('_orfStart-')[0])
+            orf_start = int(tname.split('_orfStart-')[1])
+            if frame_offset < 3:
+                strand = "+"
+                start = orf_start * 3 + frame_offset + int(fields[8]) * 3 - 2
+                stop = orf_start * 3 + frame_offset + int(fields[9]) * 3
+            else:
+                strand = "-"
+                start = frame_offset - 3 * orf_start - 3 * int(fields[8]) + 3
+                stop = frame_offset - 3 * orf_start - 3 * int(fields[9]) + 1
+            out_file.write("\t".join([fields[0],tname.split('_frameOffset-')[0],fields[2],'.','.',strand,
+                             fields[6],fields[7],str(start),str(stop),fields[10],fields[11],fields[12],fields[13]]) + '\n')
+    out_file.close()
 
 def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intron):
     candidate_loci_dict = {}
@@ -540,7 +630,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
                                                     'stderr':err_log_file}
         ))
         threads_list[-1].start()
-        while threading.active_count() >= threads:
+        while threading.active_count() > threads:
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()
@@ -577,7 +667,7 @@ def annotate_with_genewise(genome_file,buffer,candidate_loci_file,path_dict,hmm_
         threads_list.append(threading.Thread(target = run_genewisedb,
             args = [genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,out_dir]))
         threads_list[-1].start()
-        while threading.active_count() >= threads:
+        while threading.active_count() > threads:
             time.sleep(0.1)
     for thread in threads_list:
         thread.join()
@@ -588,6 +678,8 @@ def annotate_with_genewise(genome_file,buffer,candidate_loci_file,path_dict,hmm_
                 out_file.write(line)
     out_file.close()
 
+def annotate_with_exonerate(genome_file,buffer,candidate_loci_file,path_dict,fasta_dir,out_dir,threads):
+    pass
 
 def main(args):
     sys.stderr.write(happy_logo())
@@ -631,25 +723,44 @@ def main(args):
         hmm_dir = args.hmm_dir
     elif args.hmm or args.fasta_dir or args.protein_seqs or args.annotations:
         hmm_dir = args.output_dir + '/hmms'
-    if (args.hmm_dir or args.hmm or args.fasta_dir or args.protein_seqs or args.annotations) and not args.hit_table:
-        run_thammerin(hmm_dir,args.target_genome,args.output_dir + '/thammerin_results',
-                  args.threads,path_dict,args.genome_orfs,args.output_dir,args.evalue)
-    if args.hit_table:
-        hit_table = args.hit_table
     else:
-        thammerin_hits = open(args.output_dir + '/thammerin_hits.tsv','w')
-        for thammerin_file in os.listdir(args.output_dir + '/thammerin_results'):
-            for line in open(args.output_dir + '/thammerin_results/' + thammerin_file):
-                thammerin_hits.write(line)
-        thammerin_hits.close()
-        hit_table = args.output_dir + '/thammerin_hits.tsv'
-    candidate_loci = hit_table2candidate_loci(hit_table,args.search_mode,args.max_loci_per_cluster,args.max_intron_length)
+        hmm_dir = None
+    if hmm_dir and (args.initial_search_tool == 'diamond' or 'exonerate' in args.annotator):
+        os.makedirs(args.output_dir + '/consensus_fastas')
+        emit_hmm_consensi(hmm_dir,args.output_dir + '/consensus_fastas',path_dict)
+    if (args.hmm_dir or args.hmm or args.fasta_dir or args.protein_seqs or args.annotations) and not args.hit_table:
+        if not args.genome_orfs:
+            translate_genome(args.target_genome,args.output_dir + '/genomeOrfs.fasta',args.min_orf_size)
+            genome_orfs = args.output_dir + '/genomeOrfs'
+        else:
+            genome_orfs = args.genome_orfs
+        if args.initial_search_tool == 'thammerin':
+            run_thammerin(hmm_dir,args.target_genome,args.output_dir + '/thammerin_results',
+                      args.threads,path_dict,genome_orfs,args.output_dir,args.evalue)
+            hit_table = args.output_dir + '/thammerin_hits.tsv'
+        elif args.initial_search_tool == 'diamond':
+            consensus_peps = open(args.output_dir + '/all_query_consensi.pep','w')
+            for fasta_file in os.listdir(args.output_dir + '/consensus_fastas'):
+                for line in open(args.output_dir + '/consensus_fastas/' + fasta_file):
+                    consensus_peps.write(line)
+            consensus_peps.close()
+            subprocess.call(shlex.split(path_dict['diamond'] + ' makedb --in ' + args.output_dir +
+                '/all_query_consensi.pep --db ' + args.output_dir + '/all_query_consensi' + ' --threads ' + str(args.threads) ),
+                stderr = open('/dev/null'),stdout = open('/dev/null'))
+            os.makedirs(args.output_dir + '/diamond_results')
+            run_diamond(genome_orfs,args.output_dir + '/all_query_consensi',path_dict,args.threads,
+                        args.output_dir + '/diamond_hits.tsv',args.diamond_options,args.evalue)
+            hit_table = args.output_dir + '/diamond_hits.tsv'
+    elif args.hit_table:
+        hit_table = args.hit_table
+    subprocess.call(shlex.split('sort -k2,2 -k9,9n ' + hit_table),stdout = open(args.output_dir + '/sorted_hit_table.tsv','w'))
+    candidate_loci = hit_table2candidate_loci(args.output_dir + '/sorted_hit_table.tsv',args.search_mode,args.max_loci_per_cluster,args.max_intron_length)
     candidate_locus_file = open(args.output_dir + '/candidate_loci.tab','w')
     for line in candidate_loci:
         candidate_locus_file.write("\t".join(line) + '\n')
     candidate_locus_file.close()
     if 'genewise' in args.annotator:
-        os.environ['WISECONFIGDIR'] = path_dict['program_dir'] + '/' + 'happy_wisecfg'
+        os.environ['WISECONFIGDIR'] = path_dict['program_dir'] + '/' + 'cfgFiles'
         os.makedirs(args.output_dir + '/genewise')
         annotate_with_genewise(args.target_genome,args.buffer,args.output_dir + '/candidate_loci.tab',
             path_dict,hmm_dir,args.output_dir + '/genewise',args.threads)
@@ -662,7 +773,7 @@ def main(args):
         if args.augustus_extrinsic:
             extrinsic_config_file = args.augustus_extrinsic
         else:
-            extrinsic_config_file = path_dict['program_dir'] + '/augustus_extrinsic.MP.cfg'
+            extrinsic_config_file = path_dict['program_dir'] + 'cfgFiles/augustus_extrinsic.MP.cfg'
         if 'genewise' in args.annotator:
             genewise = args.output_dir + '/genewise/all_genewise_predictions.gff' #Fix after adding genewise function
         else:
@@ -679,14 +790,21 @@ if __name__ == "__main__":
 ####
 #
 # features to add:
+# -fix thammerin and genewise hints to augustus so that only hints from the same cluster are used
+# -output peptides from genewise and augustus analyses
 # -gene-location aware candidate locus parsing
 # -phase-aware genewise analysis
 # -automatic extension of candidate loci based on genewise hits
 # -genewise result filtering
 # -augustus result filtering
-# -add diamond support
-# -add exonerate support
-# -add funtion to generate augustus profiles
+# -diamond support
+# -exonerate support
+# -funtion to generate augustus profiles
+# -evaluation of cluster matches (number, length, "goodness", etc.)
+# -retraining option
+# -automated cluster selection by conservation (select relatively gapless, conserved clusters for continued proccessing to add in annotation efforts)
+# -automatic retraining and re-running of augustus
+# -rewrite to avoid using thammerin
 #
 #Stretch goals:
 # -function to check for and report frameshifts using genewise/exonerate matches

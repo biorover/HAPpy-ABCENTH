@@ -1,0 +1,8 @@
+# start of example 5' splice data
+# A C G T
+25 25 25 25
+splice
+0  0 100   0
+0  10   0 90
+25 25 25 25
+# end of test 5' splice data

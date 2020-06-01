@@ -448,9 +448,11 @@ def emit_hmm_consensi(hmm_dir,out_dir,path_dict):
     hmm_files = os.listdir(hmm_dir)
     for hmm in hmm_files:
         out_file = open(out_dir + '/' + hmm.replace('.hmm','') + '.consensus.fa','w')
-        subprocess.call(shlex.split(path_dict['hmmemit'] + ' -c ' + hmm_dir + '/' +
-                                    hmm),stdout = out_file)
+        emittext = subprocess.check_output(shlex.split(path_dict['hmmemit'] + ' -c ' + hmm_dir + '/' +
+                                    hmm))
+        out_file.write(emittext.replace('-consenus'))
         out_file.close()
+
 
 def build_diamond_dbs(fasta_dir,out_dir,path_dict,threads):
     threads_list = []

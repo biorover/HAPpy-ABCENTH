@@ -449,7 +449,7 @@ def emit_hmm_consensi(hmm_dir,out_dir,path_dict):
     for hmm in hmm_files:
         out_file = open(out_dir + '/' + hmm.replace('.hmm','') + '.consensus.fa','w')
         emittext = subprocess.check_output(shlex.split(path_dict['hmmemit'] + ' -c ' + hmm_dir + '/' +
-                                    hmm))
+                                    hmm)).decode('utf-8')
         out_file.write(emittext.replace('-consenus','w'))
         out_file.close()
 

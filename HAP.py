@@ -16,6 +16,7 @@ import threading
 import shlex
 import tempfile
 from collections import defaultdict,deque
+from intervaltree import IntervalTree,Interval
 
 def happy_logo():
     return """            _______  _______                    _
@@ -542,7 +543,7 @@ def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intr
                     candidate_locus_list.append([cluster,seqname,str(locus[0]),str(locus[1]),locus[4],str(locus[2]),str(locus[3]),str(locus[5])])
     return candidate_locus_list
 
-def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,hmm_hints,out_dir,candidate_loci_file,buffer,config_file,genewise,exonerate,path_dict,threads):
+def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,hmm_hints,out_dir,candidate_loci_file,buffer,config_file,genewise,exonerate,path_dict,threads,filter_by_overlap):
     sys.stderr.write('annotating candidate loci with augustus\n')
     log_file = open(out_dir + '/augustus_cmds.log','w')
     err_log_file = open(out_dir + '/augustus_errors.log','w')
@@ -610,7 +611,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             hint_out.write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
                                     'grp=' + target + '-exonerate;pri=2;src=P\n']))
             hint_out.close()
-    aug_cmd_root = path_dict['augustus'] + ' --protein=T --species=' + augustus_species
+    aug_cmd_root = path_dict['augustus'] + ' --species=' + augustus_species
     threads_list = []
     for line in open(candidate_loci_file):
         fields = line.split('\t')
@@ -634,7 +635,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
         if profile_dir:
             aug_cmd += ' --proteinprofile=' + profile_dir + '/' + query + '.prfl'
         aug_cmd += " " + out_dir + '/' + seq + '.fasta'
-        out_file_name = query + '_' + seq + '_' + fields[2] + "-" + fields[3] + '.aug.gff'
+        out_file_name = query + '_seqID_' + seq + '_coords_' + fields[2] + "-" + fields[3] + '.aug.gff'
         log_file.write(aug_cmd + '\n')
         threads_list.append(threading.Thread(target = subprocess.call,
             args = [shlex.split(aug_cmd)], kwargs = {'stdout':open(out_dir + '/' + out_file_name,'a'),
@@ -646,12 +647,44 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
     for thread in threads_list:
         thread.join()
     master_augustus_file = open(out_dir + '/all_augustus_predictions.gff','w')
+    if filter_by_overlap:
+        overlap_tree_dict = {}
+        for line in open(filter_by_overlap):
+            fields = line.split('\t')
+            start = min([int(fields[9]),int(fields[8])])
+            end = max([int(fields[9]),int(fields[8])])
+            cluster = fields[0]
+            seq = fields[1]
+            if not cluster in overlap_tree_dict:
+                overlap_tree_dict[cluster] = {}
+            if not seq in overlap_tree_dict[cluster]:
+                overlap_tree_dict[cluster][seq] = IntervalTree()
+            overlap_tree_dict[cluster][seq][start:end] = True
     for out_file in os.listdir(out_dir):
-        if ".aug.gff" in out_file:
+        if ".aug.gff" in out_file:            
             gene_id_root = out_file.replace('aug.gff','')
+            cluster = gene_id_root.split('_seqID_')[0]
+            seq = gene_id_root.split('_seqID_')[1].split('_coords_')[0]
+            can_loc_start = int(gene_id_root.split('_seqID_')[1].split('_coords_')[1].split('-')[0])
+            can_loc_end =  int(gene_id_root.split('_seqID_')[1].split('_coords_')[1].split('-')[1].split('.')[0])
             for line in open(out_dir + '/' + out_file):
+                if filter_by_overlap:
+                    outlinedict = {}
+                    goodgenes = []
                 if "AUGUSTUS\tCDS\t" in line:
-                    master_augustus_file.write(line.replace(' "g',' "' + gene_id_root))
+                    if filter_by_overlap:
+                        overlap_tree = IntervalTree(overlap_tree_dict[cluster][seq][can_loc_start:can_loc_end])
+                        fields = line.split('\t')
+                        if len(overlap_tree[int(fields[3]):int(fields[4])]) > 0:
+                            goodgenes.append(fields[8])
+                        if not fields[8] in outlinedict:
+                            outlinedict[fields[8]] = []
+                        outlinedict[fields[8]].append(line.replace(' "g',' "' + gene_id_root))
+                    else:
+                        master_augustus_file.write(line.replace(' "g',' "' + gene_id_root))
+                if filter_by_overlap:
+                    for goodgene in goodgenes:
+                        master_augustus_file.write("".join(outlinedict[goodgene]))
     master_augustus_file.close()
     log_file.close()
     err_log_file.close()
@@ -830,7 +863,7 @@ def main(args):
         annotate_with_augustus(args.target_genome,args.augustus_species,args.augustus_hints,
             args.augustus_profile_dir,hmm_hints,args.output_dir + '/augustus',
             args.output_dir + '/candidate_loci.tab',args.buffer,
-            extrinsic_config_file,genewise,exonerate,path_dict,args.threads)
+            extrinsic_config_file,genewise,exonerate,path_dict,args.threads,hit_table)
 
 if __name__ == "__main__":
     main(args)
@@ -840,9 +873,9 @@ if __name__ == "__main__":
 #
 # features to add:
 # -output peptides from genewise and augustus analyses
-# -genewise result filtering
-# -augustus result filtering
-# -funtion to generate augustus profiles
+# -genewise result filtering (by what?)
+# -augustus result filtering (by overlap to search hints?)
+# -function to generate augustus profiles
 # -evaluation of cluster matches (number, length, "goodness", etc.)
 # -automated cluster selection by conservation (select relatively gapless, conserved clusters for continued proccessing to add in annotation efforts)
 # -automatic retraining and re-running of augustus

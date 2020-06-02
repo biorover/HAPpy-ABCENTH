@@ -611,7 +611,6 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             hint_file_name = seq + '_' + target
             if feature == 'intron' and int(hint_end) - int(hint_start) < 100: #add this because augustus throws out hint groups with short introns
                 continue
-            if not hint_file_name in hints_files:
             hint_out = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
             hint_out.write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
                                     'grp=' + target + '-exonerate;pri=2;src=P\n']))

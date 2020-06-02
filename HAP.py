@@ -158,8 +158,7 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
     tmp_fasta.write(bytes('>' + seqname + '\n','UTF-8'))
     tmp_fasta.write(bytes("".join(seq_file_file[1:])[start:end],'UTF-8'))
     tmp_fasta.flush()
-    query_name = query_fasta.replace('.fa','').replace('.consensus','')
-    query_name = ".".join(query_fasta.split('/')[-1].split('.')[:-1])
+    query_name = query_fasta.split('/')[-1].replace('.fa','').replace('.consensus','')
     exonerate_result = subprocess.check_output(shlex.split(exonerate_path + ' ' + exonerate_options +
                                 ' --showtargetgff -q ' + query_fasta + ' -t ' + tmp_fasta.name + ' --splice3 ' +
                                 splice3 + ' --splice5 ' + splice5 )).decode('utf-8')
@@ -574,13 +573,14 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
         for line in open(hmm_hints):
             fields = line.split('\t')
             seq = fields[1]
+            cluster = fields[0]
             hint_start = min([int(fields[9]),int(fields[8])]) + 10
             hint_end = max([int(fields[9]),int(fields[8])]) - 10
             if hint_end - hint_start > 5:
                 if not seq in hints_files:
-                    hints_files[seq] = open(out_dir + '/' + seq + '.hints.gff','a')
-                hints_files[seq].write("\t".join([seq,'thammerin','CDSpart',str(hint_start),str(hint_end),fields[11],'.','.',
-                                        'grp=' + fields[0] + ';pri=4;src=P\n']))
+                    hints_files[seq] = open(out_dir + '/' + seq + '_' + cluster + '.hints.gff','a')
+                hints_files[seq].write("\t".join([seq,'thammerin','CDSpart',str(hint_start),str(hint_end),fields[11],fields[5],'.',
+                                        'grp=' + cluster + '-searchHit;pri=4;src=P\n']))
         for hint_file in hints_files:
             hints_files[hint_file].close()
     if genewise:
@@ -590,13 +590,14 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             seq = fields[0]
             hint_start = fields[3]
             hint_end = fields[4]
-            score = fields[6]
+            score = fields[5]
+            strand = fields[6]
             target = fields[8].split(';')[0].split('_hitOn_')[0].split()[1]
             feature = fields[2]
             if not seq in hints_files:
-                hints_files[seq] = open(out_dir + '/' + seq + '.hints.gff','a')
-            hints_files[seq].write("\t".join([seq,'GeneWise',feature,hint_start,hint_end,score,'.','.',
-                                    'grp=' + target + ';pri=2;src=P\n']))
+                hints_files[seq] = open(out_dir + '/' + seq + '_' + target + '.hints.gff','a')
+            hints_files[seq].write("\t".join([seq,'GeneWise',feature,hint_start,hint_end,score,strand,'.',
+                                    'grp=' + target + '-genewise;pri=2;src=P\n']))
         for hint_file in hints_files:
             hints_files[hint_file].close()
     if exonerate:
@@ -606,15 +607,16 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             seq = fields[0]
             hint_start = fields[3]
             hint_end = fields[4]
-            score = fields[6]
+            score = fields[5]
+            strand = fields[6]
             target = fields[8].split(';')[0].split('_hitOn_')[0].split()[1]
             feature = fields[2]
             if feature == 'intron' and int(hint_end) - int(hint_start) < 100: #add this because augustus throws out hint groups with short introns
                 continue
             if not seq in hints_files:
-                hints_files[seq] = open(out_dir + '/' + seq + '.hints.gff','a')
-            hints_files[seq].write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,'.','.',
-                                    'grp=' + target + ';pri=2;src=P\n']))
+                hints_files[seq] = open(out_dir + '/' + seq + '_' + target + '.hints.gff','a')
+            hints_files[seq].write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
+                                    'grp=' + target + '-exonerate;pri=2;src=P\n']))
         for hint_file in hints_files:
             hints_files[hint_file].close()
     aug_cmd_root = path_dict['augustus'] + ' --protein=T --species=' + augustus_species
@@ -625,8 +627,19 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             ' --predictionEnd=' + str(int(fields[3]) + buffer)
         seq = fields[1]
         query = fields[0]
-        if seq + '.hints.gff' in os.listdir(out_dir):
-            aug_cmd += ' --hintsfile=' + out_dir + '/' + seq + '.hints.gff' + ' --extrinsicCfgFile=' + config_file
+        if seq + '.hints.gff' in os.listdir(out_dir) or seq + '_' + query + '.hints.gff' in os.listdir(out_dir):
+            if seq + '.hints.gff' in os.listdir(out_dir) and seq + '_' + query + '.hints.gff' in os.listdir(out_dir):
+                cl_hints_file = tempfile.NamedTemporaryFile('.gff')
+                for line in open(out_dir + '/' + seq + '.hints.gff','b'):
+                    cl_hints_file.write(line)
+                for line in  open(out_dir + '/' + seq + '_' + query + '.hints.gff','b'):
+                    cl_hints_file.write(line)
+                cl_hints_file.flush()
+            elif seq + '.hints.gff' in os.listdir(out_dir):
+                cl_hints_file = out_dir + '/' + seq + '.hints.gff'
+            else:
+                cl_hints_file = out_dir + "/" + seq + '_' + query + '.hints.gff'
+            aug_cmd += ' --hintsfile=' + cl_hints_file + ' --extrinsicCfgFile=' + config_file
         if profile_dir:
             aug_cmd += ' --proteinprofile=' + profile_dir + '/' + query + '.prfl'
         aug_cmd += " " + out_dir + '/' + seq + '.fasta'

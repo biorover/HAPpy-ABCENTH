@@ -105,6 +105,10 @@ run_args.add_argument('--diamond_options',default = "--very-sensitive", help = '
 run_args.add_argument('--exonerate_options',default = '--model protein2genome --percent 10',
                         help = 'Additional arguments to pass to exonerate protein2genome (if using exonerate for annotation). \
                         default = "--model protein2genome --percent 10". For exhaustive exonerate annotation, we recomend "--model protein2genome:bestfit -E -S no --percent 20"')
+addl_args.add_argument('--cluster_filters',nargs = "*",default = None, help = 'prefilter for clusters before taking them forward in analysis (default = None). \
+                       provide space-seperated list of "param=value" Keys. Valid params: "min_num_species" (requires species prefix folowed by underscore in gene name), \
+                       "max_alignment_gap_percent" (for total alignment), "max_gaps_for_min_species" (min_num_species must also be set, at least min_num_species \
+                       must have no more than this percentage of gaps in alignment)')
 
 args = parser.parse_args()
 
@@ -402,6 +406,9 @@ def build_hmms(fasta_dir,out_dir,path_dict,mafft_options,threads,pre_aligned = F
     for thread in threads_list:
         thread.join()
 
+def filter_clusters(hmm_and_alignment_dir, filter_options,filtered_hmm_dir):
+    pass
+
 def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs,out_dir,evalue):
     hmm_list = os.listdir(hmm_dir)
     threads_list = []
@@ -661,7 +668,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
                 overlap_tree_dict[cluster][seq] = IntervalTree()
             overlap_tree_dict[cluster][seq][start:end] = True
     for out_file in os.listdir(out_dir):
-        if ".aug.gff" in out_file:            
+        if ".aug.gff" in out_file:
             gene_id_root = out_file.replace('aug.gff','')
             cluster = gene_id_root.split('_seqID_')[0]
             seq = gene_id_root.split('_seqID_')[1].split('_coords_')[0]
@@ -859,7 +866,7 @@ def main(args):
         if 'exonerate' in args.annotator:
             exonerate = args.output_dir + '/exonerate/all_exonerate_predictions.gff'
         else:
-            exoenrate = False
+            exonerate = False
         annotate_with_augustus(args.target_genome,args.augustus_species,args.augustus_hints,
             args.augustus_profile_dir,hmm_hints,args.output_dir + '/augustus',
             args.output_dir + '/candidate_loci.tab',args.buffer,
@@ -874,7 +881,6 @@ if __name__ == "__main__":
 # features to add:
 # -output peptides from genewise and augustus analyses
 # -genewise result filtering (by what?)
-# -augustus result filtering (by overlap to search hints?)
 # -function to generate augustus profiles
 # -evaluation of cluster matches (number, length, "goodness", etc.)
 # -automated cluster selection by conservation (select relatively gapless, conserved clusters for continued proccessing to add in annotation efforts)

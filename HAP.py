@@ -576,10 +576,11 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             cluster = fields[0]
             hint_start = min([int(fields[9]),int(fields[8])]) + 10
             hint_end = max([int(fields[9]),int(fields[8])]) - 10
+            hint_file_name = seq + '_' + cluster
             if hint_end - hint_start > 5:
-                if not seq in hints_files:
-                    hints_files[seq] = open(out_dir + '/' + seq + '_' + cluster + '.hints.gff','a')
-                hints_files[seq].write("\t".join([seq,'thammerin','CDSpart',str(hint_start),str(hint_end),fields[11],fields[5],'.',
+                if not hint_file_name in hints_files:
+                    hints_files[hint_file_name] = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
+                hints_files[hint_file_name].write("\t".join([seq,'thammerin','CDSpart',str(hint_start),str(hint_end),fields[11],fields[5],'.',
                                         'grp=' + cluster + '-searchHit;pri=4;src=P\n']))
         for hint_file in hints_files:
             hints_files[hint_file].close()
@@ -594,9 +595,10 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             strand = fields[6]
             target = fields[8].split(';')[0].split('_hitOn_')[0].split()[1]
             feature = fields[2]
-            if not seq in hints_files:
-                hints_files[seq] = open(out_dir + '/' + seq + '_' + target + '.hints.gff','a')
-            hints_files[seq].write("\t".join([seq,'GeneWise',feature,hint_start,hint_end,score,strand,'.',
+            hint_file_name = seq + '_' + target
+            if not hint_file_name in hints_files:
+                hints_files[hint_file_name] = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
+            hints_files[hint_file_name].write("\t".join([seq,'GeneWise',feature,hint_start,hint_end,score,strand,'.',
                                     'grp=' + target + '-genewise;pri=2;src=P\n']))
         for hint_file in hints_files:
             hints_files[hint_file].close()
@@ -611,11 +613,12 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             strand = fields[6]
             target = fields[8].split(';')[0].split('_hitOn_')[0].split()[1]
             feature = fields[2]
+            hint_file_name = seq + '_' + target
             if feature == 'intron' and int(hint_end) - int(hint_start) < 100: #add this because augustus throws out hint groups with short introns
                 continue
-            if not seq in hints_files:
-                hints_files[seq] = open(out_dir + '/' + seq + '_' + target + '.hints.gff','a')
-            hints_files[seq].write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
+            if not hint_file_name in hints_files:
+                hints_files[hint_file_name] = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
+            hints_files[hint_file_name].write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
                                     'grp=' + target + '-exonerate;pri=2;src=P\n']))
         for hint_file in hints_files:
             hints_files[hint_file].close()
@@ -659,7 +662,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
         if ".aug.gff" in out_file:
             gene_id_root = out_file.replace('aug.gff','')
             for line in open(out_dir + '/' + out_file):
-                if "\tCDS\t" in line:
+                if "AUGUSTUS\tCDS\t" in line:
                     master_augustus_file.write(line.replace(' "g',' "' + gene_id_root))
     master_augustus_file.close()
     log_file.close()
@@ -848,23 +851,21 @@ if __name__ == "__main__":
 ####
 #
 # features to add:
-# -fix thammerin and genewise hints to augustus so that only hints from the same cluster are used
 # -output peptides from genewise and augustus analyses
+# -genewise result filtering
+# -augustus result filtering
+# -funtion to generate augustus profiles
+# -evaluation of cluster matches (number, length, "goodness", etc.)
+# -automated cluster selection by conservation (select relatively gapless, conserved clusters for continued proccessing to add in annotation efforts)
+# -automatic retraining and re-running of augustus
+# -install script
+#
+# Stretch goals:
+# -function to check for and report frameshifts using genewise/exonerate matches
 # -gene-location aware candidate locus parsing
 # -phase-aware genewise analysis
 # -automatic extension of candidate loci based on genewise hits
-# -genewise result filtering
-# -augustus result filtering
-# -diamond support
-# -exonerate support
-# -funtion to generate augustus profiles
-# -evaluation of cluster matches (number, length, "goodness", etc.)
-# -retraining option
-# -automated cluster selection by conservation (select relatively gapless, conserved clusters for continued proccessing to add in annotation efforts)
-# -automatic retraining and re-running of augustus
 # -rewrite to avoid using thammerin
-#
-#Stretch goals:
-# -function to check for and report frameshifts using genewise/exonerate matches
+# -put on conda
 #
 ####

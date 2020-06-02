@@ -102,9 +102,9 @@ addl_args.add_argument('--initial_search_tool',default = 'thammerin',help = 'Sea
                         Accepts "thammerin" (default) or "diamond".')
 run_args.add_argument('--diamond_options',default = "--very-sensitive", help = 'Additional arguments to pass to the diamond aligner (if using diamond instead of thammerin). \
                       default = "--very-sensitive"')
-run_args.add_argument('--exonerate_options',default = '--percent 10',
+run_args.add_argument('--exonerate_options',default = '--model protein2genome --percent 10',
                         help = 'Additional arguments to pass to exonerate protein2genome (if using exonerate for annotation). \
-                        default = "--percent 10"')
+                        default = "--model protein2genome --percent 10". For exhaustive exonerate annotation, we recomend "--model protein2genome:bestfit -E -S no --percent 20"')
 
 args = parser.parse_args()
 
@@ -150,7 +150,7 @@ def run_genewisedb(genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,
                     out_file.write("\t".join(fields))
         out_file.close()
 
-def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options):
+def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options,splice3,splice5):
     tmp_fasta = tempfile.NamedTemporaryFile()
     tmp_out = tempfile.TemporaryFile()
     seq_file_file = open(seq_file).read().split('\n')
@@ -158,18 +158,20 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
     tmp_fasta.write(bytes('>' + seqname + '\n','UTF-8'))
     tmp_fasta.write(bytes("".join(seq_file_file[1:])[start:end],'UTF-8'))
     tmp_fasta.flush()
+    query_name = query_fasta.replace('.fa','').replace('.consensus','')
     query_name = ".".join(query_fasta.split('/')[-1].split('.')[:-1])
-    exonerate_result = subprocess.check_output(shlex.split(exonerate_path +
-                                ' --model protein2genome --showtargetgff -q ' + query_fasta + ' -t ' + tmp_fasta.name + ' ' + exonerate_options),
-                                stderr = open('/dev/null')).decode('utf-8')
-    hit_name = hmm_name + '_hitOn_' + seqname + '_' + str(start) + '-' + str(end)
-    if "GeneWise\tmatch\t" in genewise_result:
-        out_file = open(out_dir + '/' + hit_name + '.genewise.gff','w')
-        for line in genewise_result.split('\n'):
+    exonerate_result = subprocess.check_output(shlex.split(exonerate_path + ' ' + exonerate_options +
+                                ' --showtargetgff -q ' + query_fasta + ' -t ' + tmp_fasta.name + ' --splice3 ' +
+                                splice3 + ' --splice5 ' + splice5 )).decode('utf-8')
+    hit_name = query_name + '_hitOn_' + seqname + '_' + str(start) + '-' + str(end)
+    if "C4 Alignment:" in exonerate_result:
+        out_file = open(out_dir + '/' + hit_name + '.exonerate.gff','w')
+        for line in exonerate_result.split('\n'):
             fields = line.split('\t')
             if len(fields) > 8:
-                if fields[2] == 'match':
+                if fields[2] == 'gene':
                     score = fields[5]
+                    hit_suffix = fields[8].split()[1]
                 if fields[2] in ['cds','intron']:
                     if fields[2] == 'cds':
                         fields[2] = 'CDS'
@@ -178,7 +180,6 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
                     qend = max([int(fields[3]),int(fields[4])])
                     fields[3] = str(qstart + start)
                     fields[4] = str(qend + start)
-                    hit_suffix = fields[8].split('-')[-1]
                     fields[8] = 'gene_id ' + hit_name + '-' + hit_suffix + ';transcript_id ' + hit_name + '-' + hit_suffix + '-RA\n'
                     out_file.write("\t".join(fields))
         out_file.close()
@@ -453,20 +454,6 @@ def emit_hmm_consensi(hmm_dir,out_dir,path_dict):
         out_file.write(emittext.replace('-consensus',''))
         out_file.close()
 
-
-def build_diamond_dbs(fasta_dir,out_dir,path_dict,threads):
-    threads_list = []
-    for fasta in os.listdir(fasta_dir):
-        file_root = ".".join(fasta.split('.')[:-1])
-        threads_list.append(threading.Thread(target = subprocess.call,
-            args = [shlex.split(path_dict['diamond'] + ' makedb --threads ' + str(threads) + ' --in ' + fasta_dir + '/' +
-            fasta + ' -d ' + out_dir + '/' + file_root)],kwargs = {'stderr':open('/dev/null','w'),'stdout':open('/dev/null','w')}))
-        threads_list[-1].start()
-        while threading.active_count() > threads:
-            time.sleep(0.1)
-    for thread in threads_list:
-        thread.join()
-
 def run_diamond(query_peps,diamonddb,path_dict,threads,out_file_name,diamond_options,evalue):
     diamond_hits = subprocess.check_output(shlex.split(path_dict['diamond'] + ' blastp ' + diamond_options + ' -f 6 sseqid qseqid pident length mismatch gapopen sstart send qstart qend evalue bitscore qlen slen --query '
             + query_peps + ' --db ' + diamonddb + ' --evalue ' +  str(evalue) + ' --threads ' + str(threads)),stderr = open('/dev/null','w') ).decode('utf-8')
@@ -561,7 +548,7 @@ def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intr
                     candidate_locus_list.append([cluster,seqname,str(locus[0]),str(locus[1]),locus[4],str(locus[2]),str(locus[3]),str(locus[5])])
     return candidate_locus_list
 
-def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,hmm_hints,out_dir,candidate_loci_file,buffer,config_file,genewise,path_dict,threads):
+def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,hmm_hints,out_dir,candidate_loci_file,buffer,config_file,genewise,exonerate,path_dict,threads):
     sys.stderr.write('annotating candidate loci with augustus\n')
     log_file = open(out_dir + '/augustus_cmds.log','w')
     err_log_file = open(out_dir + '/augustus_errors.log','w')
@@ -609,6 +596,24 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             if not seq in hints_files:
                 hints_files[seq] = open(out_dir + '/' + seq + '.hints.gff','a')
             hints_files[seq].write("\t".join([seq,'GeneWise',feature,hint_start,hint_end,score,'.','.',
+                                    'grp=' + target + ';pri=2;src=P\n']))
+        for hint_file in hints_files:
+            hints_files[hint_file].close()
+    if exonerate:
+        hints_files = {}
+        for line in open(exonerate):
+            fields = line.split('\t')
+            seq = fields[0]
+            hint_start = fields[3]
+            hint_end = fields[4]
+            score = fields[6]
+            target = fields[8].split(';')[0].split('_hitOn_')[0].split()[1]
+            feature = fields[2]
+            if feature == 'intron' and int(hint_end) - int(hint_start) < 100: #add this because augustus throws out hint groups with short introns
+                continue
+            if not seq in hints_files:
+                hints_files[seq] = open(out_dir + '/' + seq + '.hints.gff','a')
+            hints_files[seq].write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,'.','.',
                                     'grp=' + target + ';pri=2;src=P\n']))
         for hint_file in hints_files:
             hints_files[hint_file].close()
@@ -680,8 +685,37 @@ def annotate_with_genewise(genome_file,buffer,candidate_loci_file,path_dict,hmm_
                 out_file.write(line)
     out_file.close()
 
-def annotate_with_exonerate(genome_file,buffer,candidate_loci_file,path_dict,fasta_dir,out_dir,threads):
-    pass
+def annotate_with_exonerate(genome_file,buffer,candidate_loci_file,path_dict,fasta_dir,out_dir,threads,splice3,splice5,exonerate_options):
+    sys.stderr.write('annotating with exonerate\n')
+    exonerate_path = path_dict['exonerate']
+    out_file = open('/dev/null')
+    for line in open(genome_file):
+        if line[0] == ">":
+            out_file.close()
+            current_seq = line[1:].split()[0]
+            out_file = open(out_dir + '/' + current_seq + '.fasta','w')
+        out_file.write(line)
+    out_file.close()
+    threads_list = []
+    for line in open(candidate_loci_file):
+        fields = line.split('\t')
+        seq_file = out_dir + '/' + fields[1] + '.fasta'
+        query_fasta = fasta_dir + '/' + fields[0] + '.consensus.fa'
+        start = max([int(fields[2]) - buffer,0])
+        end = int(fields[3]) + buffer
+        threads_list.append(threading.Thread(target = run_exonerate,
+            args = [exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options,splice3,splice5] ))
+        threads_list[-1].start()
+        while threading.active_count() > threads:
+            time.sleep(0.1)
+    for thread in threads_list:
+        thread.join()
+    out_file = open(out_dir + '/all_exonerate_predictions.gff','w')
+    for exonerate_file in os.listdir(out_dir):
+        if 'exonerate.gff' in exonerate_file:
+            for line in open(out_dir + '/' + exonerate_file):
+                out_file.write(line)
+    out_file.close()
 
 def main(args):
     sys.stderr.write(happy_logo())
@@ -766,6 +800,11 @@ def main(args):
         os.makedirs(args.output_dir + '/genewise')
         annotate_with_genewise(args.target_genome,args.buffer,args.output_dir + '/candidate_loci.tab',
             path_dict,hmm_dir,args.output_dir + '/genewise',args.threads)
+    if 'exonerate' in args.annotator:
+        os.makedirs(args.output_dir + '/exonerate/')
+        splice3,splice5 = path_dict['program_dir'] + '/' + 'cfgFiles/spliceGT.txt',path_dict['program_dir'] + '/' + 'cfgFiles/spliceAG.txt'
+        annotate_with_exonerate(args.target_genome,args.buffer,args.output_dir + '/candidate_loci.tab',
+            path_dict,args.output_dir + '/consensus_fastas/',args.output_dir + '/exonerate/',args.threads,splice3,splice5,args.exonerate_options)
     if "augustus" in args.annotator:
         os.makedirs(args.output_dir + '/augustus')
         if args.augustus_use_hmm_hints:
@@ -777,13 +816,17 @@ def main(args):
         else:
             extrinsic_config_file = path_dict['program_dir'] + 'cfgFiles/augustus_extrinsic.MP.cfg'
         if 'genewise' in args.annotator:
-            genewise = args.output_dir + '/genewise/all_genewise_predictions.gff' #Fix after adding genewise function
+            genewise = args.output_dir + '/genewise/all_genewise_predictions.gff'
         else:
             genewise = False
+        if 'exonerate' in args.annotator:
+            exonerate = args.output_dir + '/exonerate/all_exonerate_predictions.gff'
+        else:
+            exoenrate = False
         annotate_with_augustus(args.target_genome,args.augustus_species,args.augustus_hints,
             args.augustus_profile_dir,hmm_hints,args.output_dir + '/augustus',
             args.output_dir + '/candidate_loci.tab',args.buffer,
-            extrinsic_config_file,genewise,path_dict,args.threads)
+            extrinsic_config_file,genewise,exonerate,path_dict,args.threads)
 
 if __name__ == "__main__":
     main(args)

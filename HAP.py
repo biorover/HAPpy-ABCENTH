@@ -16,8 +16,6 @@ import threading
 import shlex
 import tempfile
 from collections import defaultdict,deque
-from threading import Thread
-
 
 def happy_logo():
     return """            _______  _______                    _
@@ -151,7 +149,7 @@ def run_genewisedb(genewisedb_path,hmmconvert_path,hmm3_file,seq_file,start,end,
                     out_file.write("\t".join(fields))
         out_file.close()
 
-def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options,splice3,splice5):
+def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options,splice3,splice5,result_dict):
     tmp_fasta = tempfile.NamedTemporaryFile()
     tmp_out = tempfile.TemporaryFile()
     seq_file_file = open(seq_file).read().split('\n')
@@ -164,9 +162,9 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
                                 ' --showtargetgff -q ' + query_fasta + ' -t ' + tmp_fasta.name + ' --splice3 ' +
                                 splice3 + ' --splice5 ' + splice5 )).decode('utf-8')
     hit_name = query_name + '_hitOn_' + seqname + '_' + str(start) + '-' + str(end)
+    result_dict[hit_name] = [] # test
     if "C4 Alignment:" in exonerate_result:
         #out_file = open(out_dir + '/' + hit_name + '.exonerate.gff','w')
-        out_lines = [] #test
         for line in exonerate_result.split('\n'):
             fields = line.split('\t')
             if len(fields) > 8:
@@ -182,10 +180,9 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
                     fields[3] = str(qstart + start)
                     fields[4] = str(qend + start)
                     fields[8] = 'gene_id ' + hit_name + '-' + hit_suffix + ';transcript_id ' + hit_name + '-' + hit_suffix + '-RA\n'
-                    out_lines.append("\t".join(fields)) #test
+                    result_dict[hit_name].append("\t".join(fields)) #test
                     #out_file.write("\t".join(fields))
         #out_file.close()
-        return out_lines #test
 
 def translate_genome(genome_fasta,out_file,min_orf_size):
     target_nucdb = genome.Genome(genome_fasta)
@@ -213,18 +210,6 @@ def translate_genome(genome_fasta,out_file,min_orf_size):
         frame_fasta.write('\n'.join(fasta_list) + '\n')
     frame_fasta.close()
 
-class ThreadWithReturnValue(Thread):
-    def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs={}, Verbose=None):
-        Thread.__init__(self, group, target, name, args, kwargs, Verbose)
-        self._return = None
-    def run(self):
-        if self._Thread__target is not None:
-            self._return = self._Thread__target(*self._Thread__args,
-                                                **self._Thread__kwargs)
-    def join(self):
-        Thread.join(self)
-        return self._return
 
 ####
 #
@@ -718,21 +703,25 @@ def annotate_with_exonerate(genome_file,buffer,candidate_loci_file,path_dict,fas
         out_file.write(line)
     out_file.close()
     threads_list = []
+    out_line_dict = {}
     for line in open(candidate_loci_file):
         fields = line.split('\t')
         seq_file = out_dir + '/' + fields[1] + '.fasta'
         query_fasta = fasta_dir + '/' + fields[0] + '.consensus.fa'
         start = max([int(fields[2]) - buffer,0])
         end = int(fields[3]) + buffer
-        threads_list.append(ThreadWithReturnValue(target = run_exonerate,
-            args = [exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options,splice3,splice5] ))
+        threads_list.append(threading.Thread(target = run_exonerate,
+            args = [exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options,splice3,splice5,out_line_dict] ))
         threads_list[-1].start()
         while threading.active_count() > threads:
             time.sleep(0.1)
     out_file = open(out_dir + '/all_exonerate_predictions.gff','w')
     for thread in threads_list:
         thread.join()
-        out_file.write(thread.join() + '\n')
+        thread.join()
+    for hit in out_line_dict:
+        for line in out_line_dict[hit]:
+            out_file.write(line )
     #for exonerate_file in os.listdir(out_dir):
     #    if 'exonerate.gff' in exonerate_file:
     #        for line in open(out_dir + '/' + exonerate_file):

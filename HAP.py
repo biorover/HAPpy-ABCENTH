@@ -578,12 +578,10 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             hint_end = max([int(fields[9]),int(fields[8])]) - 10
             hint_file_name = seq + '_' + cluster
             if hint_end - hint_start > 5:
-                if not hint_file_name in hints_files:
-                    hints_files[hint_file_name] = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
-                hints_files[hint_file_name].write("\t".join([seq,'thammerin','CDSpart',str(hint_start),str(hint_end),fields[11],fields[5],'.',
+                hint_out = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
+                hint_out.write("\t".join([seq,'thammerin','CDSpart',str(hint_start),str(hint_end),fields[11],fields[5],'.',
                                         'grp=' + cluster + '-searchHit;pri=4;src=P\n']))
-        for hint_file in hints_files:
-            hints_files[hint_file].close()
+            hint_out.close()
     if genewise:
         hints_files = {}
         for line in open(genewise):
@@ -596,14 +594,11 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             target = fields[8].split(';')[0].split('_hitOn_')[0].split()[1]
             feature = fields[2]
             hint_file_name = seq + '_' + target
-            if not hint_file_name in hints_files:
-                hints_files[hint_file_name] = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
-            hints_files[hint_file_name].write("\t".join([seq,'GeneWise',feature,hint_start,hint_end,score,strand,'.',
+            hint_out = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
+            hint_out.write("\t".join([seq,'GeneWise',feature,hint_start,hint_end,score,strand,'.',
                                     'grp=' + target + '-genewise;pri=2;src=P\n']))
-        for hint_file in hints_files:
-            hints_files[hint_file].close()
+            hint_out.close()
     if exonerate:
-        hints_files = {}
         for line in open(exonerate):
             fields = line.split('\t')
             seq = fields[0]
@@ -617,11 +612,10 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             if feature == 'intron' and int(hint_end) - int(hint_start) < 100: #add this because augustus throws out hint groups with short introns
                 continue
             if not hint_file_name in hints_files:
-                hints_files[hint_file_name] = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
-            hints_files[hint_file_name].write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
+            hint_out = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
+            hint_out.write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
                                     'grp=' + target + '-exonerate;pri=2;src=P\n']))
-        for hint_file in hints_files:
-            hints_files[hint_file].close()
+            hint_out.close()
     aug_cmd_root = path_dict['augustus'] + ' --protein=T --species=' + augustus_species
     threads_list = []
     for line in open(candidate_loci_file):

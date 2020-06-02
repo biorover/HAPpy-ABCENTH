@@ -16,6 +16,7 @@ import threading
 import shlex
 import tempfile
 from collections import defaultdict,deque
+from threading import Thread
 
 
 def happy_logo():
@@ -164,7 +165,8 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
                                 splice3 + ' --splice5 ' + splice5 )).decode('utf-8')
     hit_name = query_name + '_hitOn_' + seqname + '_' + str(start) + '-' + str(end)
     if "C4 Alignment:" in exonerate_result:
-        out_file = open(out_dir + '/' + hit_name + '.exonerate.gff','w')
+        #out_file = open(out_dir + '/' + hit_name + '.exonerate.gff','w')
+        out_lines = [] #test
         for line in exonerate_result.split('\n'):
             fields = line.split('\t')
             if len(fields) > 8:
@@ -180,8 +182,10 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
                     fields[3] = str(qstart + start)
                     fields[4] = str(qend + start)
                     fields[8] = 'gene_id ' + hit_name + '-' + hit_suffix + ';transcript_id ' + hit_name + '-' + hit_suffix + '-RA\n'
-                    out_file.write("\t".join(fields))
-        out_file.close()
+                    out_lines.append("\t".join(fields)) #test
+                    #out_file.write("\t".join(fields))
+        #out_file.close()
+        return out_lines #test
 
 def translate_genome(genome_fasta,out_file,min_orf_size):
     target_nucdb = genome.Genome(genome_fasta)
@@ -209,10 +213,18 @@ def translate_genome(genome_fasta,out_file,min_orf_size):
         frame_fasta.write('\n'.join(fasta_list) + '\n')
     frame_fasta.close()
 
-
-#joe = translate_genome(gfile,'/dev/null',20)
-#bob = time.time(); joe = translate_genome(gfile,'/dev/null',20); print(time.time() - bob)
-
+class ThreadWithReturnValue(Thread):
+    def __init__(self, group=None, target=None, name=None,
+                 args=(), kwargs={}, Verbose=None):
+        Thread.__init__(self, group, target, name, args, kwargs, Verbose)
+        self._return = None
+    def run(self):
+        if self._Thread__target is not None:
+            self._return = self._Thread__target(*self._Thread__args,
+                                                **self._Thread__kwargs)
+    def join(self):
+        Thread.join(self)
+        return self._return
 
 ####
 #
@@ -712,18 +724,19 @@ def annotate_with_exonerate(genome_file,buffer,candidate_loci_file,path_dict,fas
         query_fasta = fasta_dir + '/' + fields[0] + '.consensus.fa'
         start = max([int(fields[2]) - buffer,0])
         end = int(fields[3]) + buffer
-        threads_list.append(threading.Thread(target = run_exonerate,
+        threads_list.append(ThreadWithReturnValue(target = run_exonerate,
             args = [exonerate_path,query_fasta,seq_file,start,end,out_dir, exonerate_options,splice3,splice5] ))
         threads_list[-1].start()
         while threading.active_count() > threads:
             time.sleep(0.1)
+    out_file = open(out_dir + '/all_exonerate_predictions.gff','w')
     for thread in threads_list:
         thread.join()
-    out_file = open(out_dir + '/all_exonerate_predictions.gff','w')
-    for exonerate_file in os.listdir(out_dir):
-        if 'exonerate.gff' in exonerate_file:
-            for line in open(out_dir + '/' + exonerate_file):
-                out_file.write(line)
+        out_file.write(thread.join() + '\n')
+    #for exonerate_file in os.listdir(out_dir):
+    #    if 'exonerate.gff' in exonerate_file:
+    #        for line in open(out_dir + '/' + exonerate_file):
+    #            out_file.write(line)
     out_file.close()
 
 def main(args):
@@ -776,7 +789,7 @@ def main(args):
     if (args.hmm_dir or args.hmm or args.fasta_dir or args.protein_seqs or args.annotations) and not args.hit_table:
         if not args.genome_orfs:
             translate_genome(args.target_genome,args.output_dir + '/genomeOrfs.fasta',args.min_orf_size)
-            genome_orfs = args.output_dir + '/genomeOrfs'
+            genome_orfs = args.output_dir + '/genomeOrfs.fasta'
         else:
             genome_orfs = args.genome_orfs
         if args.initial_search_tool == 'thammerin':
@@ -792,7 +805,6 @@ def main(args):
             subprocess.call(shlex.split(path_dict['diamond'] + ' makedb --in ' + args.output_dir +
                 '/all_query_consensi.pep --db ' + args.output_dir + '/all_query_consensi' + ' --threads ' + str(args.threads) ),
                 stderr = open('/dev/null'),stdout = open('/dev/null'))
-            os.makedirs(args.output_dir + '/diamond_results')
             run_diamond(genome_orfs,args.output_dir + '/all_query_consensi',path_dict,args.threads,
                         args.output_dir + '/diamond_hits.tsv',args.diamond_options,args.evalue)
             hit_table = args.output_dir + '/diamond_hits.tsv'

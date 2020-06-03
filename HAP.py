@@ -406,8 +406,11 @@ def build_hmms(fasta_dir,out_dir,path_dict,mafft_options,threads,pre_aligned = F
     for thread in threads_list:
         thread.join()
 
-def filter_clusters(hmm_and_alignment_dir, filter_options,filtered_hmm_dir):
-    pass
+def filter_cluster_hmms_by_alignments(alignment_dir,hmm_dir,filter_options,filtered_hmm_dir):
+    keep_cluster = []
+    for alignment_file in os.list_dir(alignment_dir):
+        if ".mafft" in alignment_file:
+            pass
 
 def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs,out_dir,evalue):
     hmm_list = os.listdir(hmm_dir)
@@ -549,6 +552,52 @@ def hit_table2candidate_loci(hit_table,search_mode,max_loci_per_cluster,max_intr
                 if locus[5] >= min(locus_min_scores[cluster]):
                     candidate_locus_list.append([cluster,seqname,str(locus[0]),str(locus[1]),locus[4],str(locus[2]),str(locus[3]),str(locus[5])])
     return candidate_locus_list
+
+def filter_canidate_loci(candidate_loci):
+    """sorts candidate loci by score (highest first) and then filters out (or trims) loci which overlap a higher scoring locus"""
+    seq_trees = {}
+    sorted_loci = []
+    for fields in candidate_loci:
+        score = fields[7]
+        sorted_loci.append([score,fields])
+    sorted_loci.sort()
+    sorted_loci.reverse()
+    for entry in sorted_loci:
+        fields = entry[1]
+        seq = fields[1]
+        strand = fields[4]
+        if not seq + strand in seq_trees:
+            seq_trees[seq + strand] = IntervalTree()
+        start = int(fields[2])
+        end = int(fields[3])
+        new_coords = [[start]]
+        overlapped = False
+        completely_overlapped = False
+        for overlap in sorted(seq_trees[seq+strand][start:end]):
+            overlapped = True
+            if overlap[0] <= start and overlap[1] < end:
+                new_coords[-1][0] = overlap[1] + 1
+            elif overlap[1] < end:
+                new_coords[-1].append(overlap[0])
+                new_coords.append(overlap[1] + 1)
+            elif overlap[1] >= end and overlap[0] > start:
+                new_coords[-1].append(overlap[0])
+            elif overlap[1] >= end and overlap[0] <= start:
+                completely_overlapped = True
+        if overlapped:
+            if not completely_overlapped:
+                for coords in new_coords:
+                    newfields = fields[:]
+                    newfields[2] = str(coords[0])
+                    newfields[3] = str(coords[1])
+                    seq_trees[seq + strand][coords[0]:coords[1]] = newfields
+        else:
+            seq_trees[seq + strand][start:end] = fields
+    filtered_candidate_loci = []
+    for tree in seq_trees:
+        for entry in sorted(seq_trees[tree]):
+            filtered_candidate_loci.append(entry[2])
+    return filtered_candidate_loci
 
 def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,hmm_hints,out_dir,candidate_loci_file,buffer,config_file,genewise,exonerate,path_dict,threads,filter_by_overlap):
     sys.stderr.write('annotating candidate loci with augustus\n')
@@ -835,8 +884,9 @@ def main(args):
         hit_table = args.hit_table
     subprocess.call(shlex.split('sort -k2,2 -k9,9n ' + hit_table),stdout = open(args.output_dir + '/sorted_hit_table.tsv','w'))
     candidate_loci = hit_table2candidate_loci(args.output_dir + '/sorted_hit_table.tsv',args.search_mode,args.max_loci_per_cluster,args.max_intron_length)
+    filtered_candidate_loci = filter_canidate_loci(candidate_loci)
     candidate_locus_file = open(args.output_dir + '/candidate_loci.tab','w')
-    for line in candidate_loci:
+    for line in filtered_candidate_loci:
         candidate_locus_file.write("\t".join(line) + '\n')
     candidate_locus_file.close()
     if 'genewise' in args.annotator:
@@ -879,7 +929,7 @@ if __name__ == "__main__":
 ####
 #
 # features to add:
-# -output peptides from genewise and augustus analyses
+# -output peptides from exonerate, genewise and augustus analyses
 # -genewise result filtering (by what?)
 # -function to generate augustus profiles
 # -evaluation of cluster matches (number, length, "goodness", etc.)

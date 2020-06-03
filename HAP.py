@@ -586,10 +586,11 @@ def filter_canidate_loci(candidate_loci):
             new_coords[-1].append(end)
         if not completely_overlapped:
             for coords in new_coords:
-                newfields = fields[:]
-                newfields[2] = str(coords[0])
-                newfields[3] = str(coords[1])
-                seq_trees[seq + strand][coords[0]:coords[1]] = newfields
+                if coords[1] - coords[0] > 100:
+                    newfields = fields[:]
+                    newfields[2] = str(coords[0])
+                    newfields[3] = str(coords[1])
+                    seq_trees[seq + strand][coords[0]:coords[1]] = newfields
     filtered_candidate_loci = []
     for tree in seq_trees:
         for entry in sorted(seq_trees[tree]):

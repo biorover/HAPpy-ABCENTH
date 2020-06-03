@@ -674,24 +674,24 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             seq = gene_id_root.split('_seqID_')[1].split('_coords_')[0]
             can_loc_start = int(gene_id_root.split('_seqID_')[1].split('_coords_')[1].split('-')[0])
             can_loc_end =  int(gene_id_root.split('_seqID_')[1].split('_coords_')[1].split('-')[1].split('.')[0])
+            if filter_by_overlap:
+                outlinedict = {}
+                goodgenes = set()
             for line in open(out_dir + '/' + out_file):
-                if filter_by_overlap:
-                    outlinedict = {}
-                    goodgenes = []
                 if "AUGUSTUS\tCDS\t" in line:
                     if filter_by_overlap:
                         overlap_tree = IntervalTree(overlap_tree_dict[cluster][seq][can_loc_start:can_loc_end])
                         fields = line.split('\t')
                         if len(overlap_tree[int(fields[3]):int(fields[4])]) > 0:
-                            goodgenes.append(fields[8])
+                            goodgenes.add(fields[8])
                         if not fields[8] in outlinedict:
                             outlinedict[fields[8]] = []
                         outlinedict[fields[8]].append(line.replace(' "g',' "' + gene_id_root))
                     else:
                         master_augustus_file.write(line.replace(' "g',' "' + gene_id_root))
-                if filter_by_overlap:
-                    for goodgene in goodgenes:
-                        master_augustus_file.write("".join(outlinedict[goodgene]))
+            if filter_by_overlap:
+                for goodgene in goodgenes:
+                    master_augustus_file.write("".join(outlinedict[goodgene]))
     master_augustus_file.close()
     log_file.close()
     err_log_file.close()

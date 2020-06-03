@@ -579,7 +579,7 @@ def filter_canidate_loci(candidate_loci):
                 new_coords[-1][0] = overlap[1] + 1
             elif overlap[1] < end:
                 new_coords[-1].append(overlap[0])
-                new_coords.append(overlap[1] + 1)
+                new_coords.append([overlap[1] + 1])
             elif overlap[1] >= end and overlap[0] > start:
                 new_coords[-1].append(overlap[0])
             elif overlap[1] >= end and overlap[0] <= start:

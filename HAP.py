@@ -571,10 +571,8 @@ def filter_canidate_loci(candidate_loci):
         start = int(fields[2])
         end = int(fields[3])
         new_coords = [[start]]
-        overlapped = False
         completely_overlapped = False
         for overlap in sorted(seq_trees[seq+strand][start:end]):
-            overlapped = True
             if overlap[0] <= start and overlap[1] < end:
                 new_coords[-1][0] = overlap[1] + 1
             elif overlap[1] < end:
@@ -584,15 +582,14 @@ def filter_canidate_loci(candidate_loci):
                 new_coords[-1].append(overlap[0])
             elif overlap[1] >= end and overlap[0] <= start:
                 completely_overlapped = True
-        if overlapped:
-            if not completely_overlapped:
-                for coords in new_coords:
-                    newfields = fields[:]
-                    newfields[2] = str(coords[0])
-                    newfields[3] = str(coords[1])
-                    seq_trees[seq + strand][coords[0]:coords[1]] = newfields
-        else:
-            seq_trees[seq + strand][start:end] = fields
+        if len(new_coords[-1]) < 2:
+            new_coords[-1].append(end)
+        if not completely_overlapped:
+            for coords in new_coords:
+                newfields = fields[:]
+                newfields[2] = str(coords[0])
+                newfields[3] = str(coords[1])
+                seq_trees[seq + strand][coords[0]:coords[1]] = newfields
     filtered_candidate_loci = []
     for tree in seq_trees:
         for entry in sorted(seq_trees[tree]):

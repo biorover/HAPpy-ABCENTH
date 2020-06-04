@@ -670,7 +670,9 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
     loci_dict = {}
     for line in open(candidate_loci_file):
         fields = line.split('\t')
-        loci_dict[fields[1] + fields[4]] = [int(fields[2]),fields]
+        if not fields[1] + fields[4] in loci_dict:
+            loci_dict[fields[1] + fields[4]] = []
+        loci_dict[fields[1] + fields[4]].append([int(fields[2]),fields])
     last_locus = ['',0]
     for seq in loci_dict: # sets annotation start and end points, adjusting them so that the annotation stards and ends (locus starts and ends +- buffer) don't overlap with previous locus starts and ends
         loci_dict[seq].sort()
@@ -679,7 +681,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             fields = locus[1]
             start = max([1,int(fields[2]) - buffer])
             end = int(fields[3]) + buffer
-            if last_locus[0] = seq and stard <= last_locus[1]: #edit the following lines if I decide to make annotation regions completely non-overlapping (currently they are just filtered to not overlap the previous/next hit range)
+            if last_locus[0] == seq and start <= last_locus[1]: #edit the following lines if I decide to make annotation regions completely non-overlapping (currently they are just filtered to not overlap the previous/next hit range)
                 start = last_locus[1] + 1
                 loci_dict[seq][locus_index - 1][3] = int(fields[2]) - 1
             loci_dict[seq][locus_index] += [start,end]
@@ -694,7 +696,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             if seqstrand[-1] == '+':
                 aug_cmd += ' --strand=forward'
             elif seqstrand[-1] == '-':
-                aug_cmd += ' --strand=forward'
+                aug_cmd += ' --strand=backward'
             seq = fields[1]
             query = fields[0]
             if seq + '.hints.gff' in os.listdir(out_dir) or seq + '_' + query + '.hints.gff' in os.listdir(out_dir):

@@ -1,0 +1,50 @@
+# This output was generated with AUGUSTUS (version 3.3).
+# AUGUSTUS is a gene prediction tool written by M. Stanke (mario.stanke@uni-greifswald.de),
+# O. Keller, S. König, L. Gerischer and L. Romoth.
+# Please cite: Mario Stanke, Mark Diekhans, Robert Baertsch, David Haussler (2008),
+# Using native and syntenically mapped cDNA alignments to improve de novo gene finding
+# Bioinformatics 24: 637-644, doi 10.1093/bioinformatics/btn013
+# Sources of extrinsic information: M P G 
+# Setting individual_liability for P.
+# reading in the file HAPpy_results/augustus/Chr11_EOG091B0FXK.hints.gff ...
+# Have extrinsic information about 1 sequences (in the specified range). 
+# Initialising the parameters using config directory /usr/share/augustus/config/ ...
+# Using protein profile unknown
+# --[0..344]--> unknown_A (17) <--[2..16]--> unknown_B (17) <--[13..54]--> unknown_D (31) <--[0..9]--> unknown_E (33) <--[0..9]--> unknown_F (45) <--[0..28]--> unknown_G (106) <--[0..27]--> unknown_H (6) <--[0..1]--> unknown_I (25) <--[0..18]--> unknown_J (21) <--[0..1]--> unknown_K (9) <--[11..22]--> unknown_L (41) <--[0..12]--
+# fly version. Using default transition matrix.
+# Looks like HAPpy_results/augustus/Chr11.fasta is in fasta format.
+# We have hints for 1 sequence and for 1 of the sequences in the input set.
+#
+# ----- prediction on sequence number 1 (length = 10174, name = Chr11) -----
+#
+# Constraints/Hints:
+Chr11	thammerin	CDSpart	12184848	12185001	42.7	-	.	grp=EOG091B0FXK-searchHit;pri=4;src=P "100;0.995;0:0"
+# Predicted genes for sequence number 1 on reverse strand
+# start gene g1
+Chr11	AUGUSTUS	gene	12179971	12186132	0.01	-	.	g1
+Chr11	AUGUSTUS	transcript	12179971	12186132	0.01	-	.	g1.t1
+Chr11	AUGUSTUS	tts	12179971	12179971	.	-	.	transcript_id "g1.t1"; gene_id "g1";
+Chr11	AUGUSTUS	exon	12179971	12181013	.	-	.	transcript_id "g1.t1"; gene_id "g1";
+Chr11	AUGUSTUS	exon	12184667	12185581	.	-	.	transcript_id "g1.t1"; gene_id "g1";
+Chr11	AUGUSTUS	stop_codon	12184817	12184819	.	-	0	transcript_id "g1.t1"; gene_id "g1";
+Chr11	AUGUSTUS	CDS	12184817	12185551	0.54	-	0	transcript_id "g1.t1"; gene_id "g1";
+Chr11	AUGUSTUS	start_codon	12185549	12185551	.	-	0	transcript_id "g1.t1"; gene_id "g1";
+Chr11	AUGUSTUS	exon	12185984	12186132	.	-	.	transcript_id "g1.t1"; gene_id "g1";
+Chr11	AUGUSTUS	tss	12186132	12186132	.	-	.	transcript_id "g1.t1"; gene_id "g1";
+# protein sequence = [MLDPANSMTTLTPMSESTGGGPGHHAGIHGPSVYSGMNGMMSHHHHHGNLGGGGGSVPHPAHHHPAMAAAAAAAVAAG
+# LHPDADTDPRELEAFAERFKQRRIKLGVTQADVGKALANLKLPGVGALSQSTICRFESLTLSHNNMIALKPILSAWLEEAEAQAKNKRRDPDAPSVLP
+# AGEKKRKRTSIAAPEKRSLEAYFAVQPRPSGEKIAAIAEKLDLKKNVVRVWFCNQRQKQKRMKFAAQH]
+# Evidence for and against this transcript:
+# % of transcript supported by hints (any source): 14.3
+# CDS exons: 1/1
+#      P:   1 
+# CDS introns: 0/0
+# 5'UTR exons and introns: 0/3
+# 3'UTR exons and introns: 0/3
+# hint groups fully obeyed: 1
+#      P:   1 (EOG091B0FXK-searchHit)
+# incompatible hint groups: 0
+# end gene g1
+###
+# command line:
+# augustus --species=fly --predictionStart=12179838 --predictionEnd=12190011 --strand=backward --hintsfile=HAPpy_results/augustus/Chr11_EOG091B0FXK.hints.gff --extrinsicCfgFile=/vagrant/cfgFiles/augustus_extrinsic.MP.cfg --proteinprofile=example_data/hymenoptera_odb9/prfl//EOG091B0FXK.prfl HAPpy_results/augustus/Chr11.fasta

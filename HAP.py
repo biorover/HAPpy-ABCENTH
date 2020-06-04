@@ -766,6 +766,11 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
                 for goodgene in goodgenes:
                     master_augustus_file.write("".join(outlinedict[goodgene]))
     master_augustus_file.close()
+    target_genome = genome.Genome(genome_file)
+    target_genome.read_gff(out_dir + '/all_augustus_predictions.gff')
+    pep_out = open(out_dir + '/all_augustus_predictions.pep','w')
+    pep_out.write(target_genome.annotations.get_fasta('gene',seq_type='protein')
+    pep_out.close()
     log_file.close()
     err_log_file.close()
 

@@ -667,37 +667,61 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             hint_out.close()
     aug_cmd_root = path_dict['augustus'] + ' --species=' + augustus_species
     threads_list = []
+    loci_dict = {}
     for line in open(candidate_loci_file):
         fields = line.split('\t')
-        aug_cmd = aug_cmd_root + ' --predictionStart=' + str(max([0,int(fields[2]) - buffer])) + \
-            ' --predictionEnd=' + str(int(fields[3]) + buffer)
-        seq = fields[1]
-        query = fields[0]
-        if seq + '.hints.gff' in os.listdir(out_dir) or seq + '_' + query + '.hints.gff' in os.listdir(out_dir):
-            if seq + '.hints.gff' in os.listdir(out_dir) and seq + '_' + query + '.hints.gff' in os.listdir(out_dir):
-                cl_hints_file = tempfile.NamedTemporaryFile('.gff')
-                for line in open(out_dir + '/' + seq + '.hints.gff','b'):
-                    cl_hints_file.write(line)
-                for line in  open(out_dir + '/' + seq + '_' + query + '.hints.gff','b'):
-                    cl_hints_file.write(line)
-                cl_hints_file.flush()
-            elif seq + '.hints.gff' in os.listdir(out_dir):
-                cl_hints_file = out_dir + '/' + seq + '.hints.gff'
-            else:
-                cl_hints_file = out_dir + "/" + seq + '_' + query + '.hints.gff'
-            aug_cmd += ' --hintsfile=' + cl_hints_file + ' --extrinsicCfgFile=' + config_file
-        if profile_dir:
-            aug_cmd += ' --proteinprofile=' + profile_dir + '/' + query + '.prfl'
-        aug_cmd += " " + out_dir + '/' + seq + '.fasta'
-        out_file_name = query + '_seqID_' + seq + '_coords_' + fields[2] + "-" + fields[3] + '.aug.gff'
-        log_file.write(aug_cmd + '\n')
-        threads_list.append(threading.Thread(target = subprocess.call,
-            args = [shlex.split(aug_cmd)], kwargs = {'stdout':open(out_dir + '/' + out_file_name,'a'),
-                                                    'stderr':err_log_file}
-        ))
-        threads_list[-1].start()
-        while threading.active_count() > threads:
-            time.sleep(0.1)
+        loci_dict[fields[1] + fields[4]] = [int(fields[2]),fields]
+    last_locus = ['',0]
+    for seq in loci_dict: # sets annotation start and end points, adjusting them so that the annotation stards and ends (locus starts and ends +- buffer) don't overlap with previous locus starts and ends
+        loci_dict[seq].sort()
+        for locus_index in range(len(loci_dict[seq])):
+            locus = loci_dict[seq][locus_index]
+            fields = locus[1]
+            start = max([1,int(fields[2]) - buffer])
+            end = int(fields[3]) + buffer
+            if last_locus[0] = seq and stard <= last_locus[1]: #edit the following lines if I decide to make annotation regions completely non-overlapping (currently they are just filtered to not overlap the previous/next hit range)
+                start = last_locus[1] + 1
+                loci_dict[seq][locus_index - 1][3] = int(fields[2]) - 1
+            loci_dict[seq][locus_index] += [start,end]
+            last_locus = [seq,int(fields[3])]
+    for seqstrand in loci_dict:
+        for locus in loci_dict[seqstrand]:
+            fields = locus[1]
+            start = locus[2]
+            end = locus[3]
+            aug_cmd = aug_cmd_root + ' --predictionStart=' + str(start) + \
+                ' --predictionEnd=' + str(int(fields[3]) + buffer)
+            if seqstrand[-1] == '+':
+                aug_cmd += ' --strand=forward'
+            elif seqstrand[-1] == '-':
+                aug_cmd += ' --strand=forward'
+            seq = fields[1]
+            query = fields[0]
+            if seq + '.hints.gff' in os.listdir(out_dir) or seq + '_' + query + '.hints.gff' in os.listdir(out_dir):
+                if seq + '.hints.gff' in os.listdir(out_dir) and seq + '_' + query + '.hints.gff' in os.listdir(out_dir):
+                    cl_hints_file = tempfile.NamedTemporaryFile('.gff')
+                    for line in open(out_dir + '/' + seq + '.hints.gff','b'):
+                        cl_hints_file.write(line)
+                    for line in  open(out_dir + '/' + seq + '_' + query + '.hints.gff','b'):
+                        cl_hints_file.write(line)
+                    cl_hints_file.flush()
+                elif seq + '.hints.gff' in os.listdir(out_dir):
+                    cl_hints_file = out_dir + '/' + seq + '.hints.gff'
+                else:
+                    cl_hints_file = out_dir + "/" + seq + '_' + query + '.hints.gff'
+                aug_cmd += ' --hintsfile=' + cl_hints_file + ' --extrinsicCfgFile=' + config_file
+            if profile_dir:
+                aug_cmd += ' --proteinprofile=' + profile_dir + '/' + query + '.prfl'
+            aug_cmd += " " + out_dir + '/' + seq + '.fasta'
+            out_file_name = query + '_seqID_' + seq + '_coords_' + fields[2] + "-" + fields[3] + '.aug.gff'
+            log_file.write(aug_cmd + '\n')
+            threads_list.append(threading.Thread(target = subprocess.call,
+                args = [shlex.split(aug_cmd)], kwargs = {'stdout':open(out_dir + '/' + out_file_name,'a'),
+                                                        'stderr':err_log_file}
+            ))
+            threads_list[-1].start()
+            while threading.active_count() > threads:
+                time.sleep(0.1)
     for thread in threads_list:
         thread.join()
     master_augustus_file = open(out_dir + '/all_augustus_predictions.gff','w')

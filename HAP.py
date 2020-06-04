@@ -769,7 +769,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
     target_genome = genome.Genome(genome_file)
     target_genome.read_gff(out_dir + '/all_augustus_predictions.gff')
     pep_out = open(out_dir + '/all_augustus_predictions.pep','w')
-    pep_out.write(target_genome.annotations.get_fasta('gene',seq_type='protein')
+    pep_out.write(target_genome.annotations.get_fasta('gene',seq_type='protein'))
     pep_out.close()
     log_file.close()
     err_log_file.close()
@@ -805,6 +805,11 @@ def annotate_with_genewise(genome_file,buffer,candidate_loci_file,path_dict,hmm_
         if 'genewise.gff' in genewise_file:
             for line in open(out_dir + '/' + genewise_file):
                 out_file.write(line)
+    target_genome = genome.Genome(genome_file)
+    target_genome.read_gff(out_dir + '/all_genewise_predictions.gff',features_to_ignore = ['intron'])
+    pep_out = open(out_dir + '/all_genewise_predictions.pep','w')
+    pep_out.write(target_genome.annotations.get_fasta('gene',seq_type='protein'))
+    pep_out.close()
     out_file.close()
 
 def annotate_with_exonerate(genome_file,buffer,candidate_loci_file,path_dict,fasta_dir,out_dir,threads,splice3,splice5,exonerate_options):
@@ -839,6 +844,11 @@ def annotate_with_exonerate(genome_file,buffer,candidate_loci_file,path_dict,fas
             for line in open(out_dir + '/' + exonerate_file):
                 out_file.write(line)
     out_file.close()
+    target_genome = genome.Genome(genome_file)
+    target_genome.read_gff(out_dir + '/all_exonerate_predictions.gff',features_to_ignore = ['intron'])
+    pep_out = open(out_dir + '/all_exonerate_predictions.pep','w')
+    pep_out.write(target_genome.annotations.get_fasta('gene',seq_type='protein'))
+    pep_out.close()
 
 def main(args):
     sys.stderr.write(happy_logo())

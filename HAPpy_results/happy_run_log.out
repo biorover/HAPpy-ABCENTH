@@ -1,1 +1,0 @@
-HAPp called as "HAP.py --genome example_data/Chr11.fa --hmm_dir temphmms --annotator exonerate,augustus --initial_search_tool diamond --overwrite True --genome_orfs example_data/Chr11.frames.pep --program_filepaths diamond=/home/vagrant/tools/diamondV0.9.32/diamond --evalue 0.0001 --augustus_profile_dir example_data/hymenoptera_odb9/prfl/"

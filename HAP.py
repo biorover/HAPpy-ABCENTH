@@ -663,7 +663,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
                 continue
             hint_out = open(out_dir + '/' + hint_file_name + '.hints.gff','a')
             hint_out.write("\t".join([seq,'exonerate',feature,hint_start,hint_end,score,strand,'.',
-                                    'grp=' + target + '-exonerate;pri=2;src=M\n']))
+                                    'grp=' + target + '-exonerate;pri=2;src=P\n']))
             hint_out.close()
     aug_cmd_root = path_dict['augustus'] + ' --species=' + augustus_species + ' --alternatives-from-evidence=false --alternatives-from-sampling=false --stopCodonExcludedFromCDS=false'
     threads_list = []

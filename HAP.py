@@ -923,6 +923,10 @@ def main(args):
         hit_table = args.hit_table
     subprocess.call(shlex.split('sort -k2,2 -k9,9n ' + hit_table),stdout = open(args.output_dir + '/sorted_hit_table.tsv','w'))
     candidate_loci = hit_table2candidate_loci(args.output_dir + '/sorted_hit_table.tsv',args.search_mode,args.max_loci_per_cluster,args.max_intron_length)
+    unfiltered_can_locs = open(args.output_dir + '/unfiltered_candidate_loci.tab','w') #adding this really just to debug
+    for line in candidate_loci:
+        unfiltered_can_locs.write("\t".join(line) + '\n')
+    unfiltered_can_locs.close()
     filtered_candidate_loci = filter_canidate_loci(candidate_loci)
     candidate_locus_file = open(args.output_dir + '/candidate_loci.tab','w')
     for line in filtered_candidate_loci:
@@ -968,7 +972,6 @@ if __name__ == "__main__":
 ####
 #
 # features to add:
-# -output peptides from exonerate, genewise and augustus analyses
 # -genewise result filtering (by what?)
 # -function to generate augustus profiles
 # -evaluation of cluster matches (number, length, "goodness", etc.)
@@ -983,5 +986,8 @@ if __name__ == "__main__":
 # -automatic extension of candidate loci based on genewise hits
 # -rewrite to avoid using thammerin
 # -put on conda
+#
+# Finished:
+# -output peptides from exonerate, genewise and augustus analyses
 #
 ####

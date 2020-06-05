@@ -674,7 +674,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             loci_dict[fields[1] + fields[4]] = []
         loci_dict[fields[1] + fields[4]].append([int(fields[2]),fields])
     last_locus = ['',0]
-    for seq in loci_dict: # sets annotation start and end points, adjusting them so that the annotation stards and ends (locus starts and ends +- buffer) don't overlap with previous locus starts and ends
+    for seq in loci_dict: # sets annotation start and end points, adjusting them so that the annotation stards and ends (locus starts and ends +- buffer) don't overlap with previous locus starts and ends (unless ends are less than 100bp from each other, in which case they can overlap by up to 100bp)
         loci_dict[seq].sort()
         for locus_index in range(len(loci_dict[seq])):
             locus = loci_dict[seq][locus_index]
@@ -682,8 +682,8 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             start = max([1,int(fields[2]) - buffer])
             end = int(fields[3]) + buffer
             if last_locus[0] == seq and start <= last_locus[1]: #edit the following lines if I decide to make annotation regions completely non-overlapping (currently they are just filtered to not overlap the previous/next hit range)
-                start = last_locus[1] + 1
-                loci_dict[seq][locus_index - 1][3] = int(fields[2]) - 1
+                start = min([last_locus[1] + 1, int(fields[2]) - 100])
+                loci_dict[seq][locus_index - 1][3] = max([int(fields[2]) - 1, loci_dict[seq][locus_index - 1][3] - buffer + 100])
             loci_dict[seq][locus_index] += [start,end]
             last_locus = [seq,int(fields[3])]
     for seqstrand in loci_dict:

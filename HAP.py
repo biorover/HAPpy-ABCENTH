@@ -558,7 +558,7 @@ def filter_canidate_loci(candidate_loci):
     seq_trees = {}
     sorted_loci = []
     for fields in candidate_loci:
-        score = fields[7]
+        score = float(fields[7])
         sorted_loci.append([score,fields])
     sorted_loci.sort()
     sorted_loci.reverse()

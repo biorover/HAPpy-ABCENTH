@@ -205,7 +205,7 @@ def run_exonerate(exonerate_path,query_fasta,seq_file,start,end,out_dir, exonera
                     out_file.write("\t".join(fields))
             elif "vulgar:" in line:
                 fields = line.split()
-                hit_file.write("\t".join([query_name,fields[5],'.','.','.',fields[8],str(int(fields[2]) + 1),fields[3],fields[6],fields[7],'.',fields[9],'.','.']) + '\n')
+                hit_file.write("\t".join([query_name,fields[5],'.','.','.',fields[8],str(int(fields[2]) + 1),fields[3],str(int(fields[6]) + start),str(int(fields[7]) + start),'.',fields[9],'.','.']) + '\n')
         out_file.close()
         hit_file.close()
 

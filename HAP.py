@@ -111,6 +111,8 @@ addl_args.add_argument('--cluster_filters',nargs = "*",default = None, help = 'p
                        must have no more than this percentage of gaps in alignment)')
 addl_args.add_argument('--extend_loci_with_alignments',default = True, help = 'if exonerate or genewise is run and augustus is to be run, use alignments from exonerate \
                        and/or genewise to potentially extend candidate loci before running augustus (default = True)')
+addl_args.add_argument('--trim_neighboring_loci', default = True, help = 'Prevents augustus candidate gene prediction regions (candidate loci += buffer) from overlapping neighboring candidate loci (NB: buffers \
+                       can still overlap each other when True, core candidate loci still won\'t overlap if False) (default = True)')
 
 args = parser.parse_args()
 
@@ -731,7 +733,7 @@ def merge_hits(out_file,*args):
             out.write(interval[2][4])
     out.close()
 
-def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,hmm_hints,out_dir,candidate_loci_file,buffer,config_file,genewise,exonerate,path_dict,threads,filter_by_overlap):
+def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,hmm_hints,out_dir,candidate_loci_file,buffer,config_file,genewise,exonerate,path_dict,threads,filter_by_overlap,trim_neighboring_loci):
     sys.stderr.write('annotating candidate loci with augustus\n')
     log_file = open(out_dir + '/augustus_cmds.log','w')
     err_log_file = open(out_dir + '/augustus_errors.log','w')
@@ -815,7 +817,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
             fields = locus[1]
             start = max([1,int(fields[2]) - buffer])
             end = int(fields[3]) + buffer
-            if last_locus[0] == seq and start <= last_locus[1]: #edit the following lines if I decide to make annotation regions completely non-overlapping (currently they are just filtered to not overlap the previous/next hit range)
+            if last_locus[0] == seq and start <= last_locus[1] and trim_neighboring_loci: #edit the following lines if I decide to make annotation regions completely non-overlapping (currently they are just filtered to not overlap the previous/next hit range)
                 start = min([last_locus[1] + 1, int(fields[2]) - 100])
                 loci_dict[seq][locus_index - 1][3] = max([int(fields[2]) - 1, loci_dict[seq][locus_index - 1][3] - buffer + 100])
             loci_dict[seq][locus_index] += [start,end]
@@ -1041,7 +1043,7 @@ def main(args):
         annotate_with_augustus(args.target_genome,args.augustus_species,args.augustus_hints,
             args.augustus_profile_dir,hmm_hints,args.output_dir + '/augustus',
             augustus_candidate_loci,args.buffer,
-            extrinsic_config_file,genewise,exonerate,path_dict,args.threads,hit_table)
+            extrinsic_config_file,genewise,exonerate,path_dict,args.threads,hit_table,args.trim_neighboring_loci)
 
 if __name__ == "__main__":
     main(args)

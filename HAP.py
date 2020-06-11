@@ -109,9 +109,9 @@ addl_args.add_argument('--cluster_filters',nargs = "*",default = None, help = 'p
                        provide space-seperated list of "param=value" Keys. Valid params: "min_num_species" (requires species prefix folowed by underscore in gene name), \
                        "max_alignment_gap_percent" (for total alignment), "max_gaps_for_min_species" (min_num_species must also be set, at least min_num_species \
                        must have no more than this percentage of gaps in alignment)')
-addl_args.add_argument('--extend_loci_with_alignments',default = True, help = 'if exonerate or genewise is run and augustus is to be run, use alignments from exonerate \
+addl_args.add_argument('--extend_loci_with_alignments',default = True, type = bool, help = 'if exonerate or genewise is run and augustus is to be run, use alignments from exonerate \
                        and/or genewise to potentially extend candidate loci before running augustus (default = True)')
-addl_args.add_argument('--trim_neighboring_loci', default = True, help = 'Prevents augustus candidate gene prediction regions (candidate loci += buffer) from overlapping neighboring candidate loci (NB: buffers \
+addl_args.add_argument('--trim_neighboring_loci', default = True, type = bool, help = 'Prevents augustus candidate gene prediction regions (candidate loci += buffer) from overlapping neighboring candidate loci (NB: buffers \
                        can still overlap each other when True, core candidate loci still won\'t overlap if False) (default = True)')
 
 args = parser.parse_args()
@@ -1052,7 +1052,6 @@ if __name__ == "__main__":
 ####
 #
 # features to add:
-# -automatic extension of candidate loci based on genewise/exonerate hits
 # -genewise result filtering (by what?)
 # -function to generate augustus profiles
 # -evaluation of cluster matches (number, length, "goodness", etc.)
@@ -1070,5 +1069,6 @@ if __name__ == "__main__":
 # Finished:
 # -output peptides from exonerate, genewise and augustus analyses
 # -evidence modeler makes predictions substantially worse, so this project was abandoned
+# -automatic extension of candidate loci based on genewise/exonerate hits
 #
 ####

@@ -367,7 +367,7 @@ def output_fastas(clusters, prot_seq_dict, search_mode, fasta_dir,ref_genome_lis
                         exon_number = len(ref_genome.annotations.transcript[transcript_id].child_list)
                     else:
                         if len(ref_genome.annotations.transcript[transcript_id].child_list) != exon_number:
-                            sys.stder.write("uh oh, transcripts with varying number of exons in: cluster " + str(cluster_index) + ", specifically gene " + transcript_id)
+                            sys.stderr.write("uh oh, transcripts with varying number of exons in: cluster " + str(cluster_index) + ", specifically gene " + transcript_id)
                             continue
                     sortlist = []
                     for CDS_id in ref_genome.annotations.transcript[transcript_id].child_list:

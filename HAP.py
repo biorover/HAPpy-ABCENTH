@@ -286,7 +286,7 @@ def annotations2fl(annotations,ref_genome,output_file):
         fasta_out.write(sp_genome.annotations.get_fasta('transcript',seq_type = 'protein'))
     fasta_out.close()
 
-def build_clusters(protein_fasta,out_dir,threads,dthresh,path_dict):
+def build_clusters(protein_fasta,out_dir,threads,dthresh,path_dict,log_file):
     """Builds a pairwise-alignment UPGMA tree using MAFFT and breaks the tree into clusters of genes\
     within a specified p-distance of each other"""
     prot_seq_dict = {}
@@ -297,7 +297,7 @@ def build_clusters(protein_fasta,out_dir,threads,dthresh,path_dict):
         else:
             prot_seq_dict[active_seq] += line[:-1]
     sys.stderr.write('building clusters for ' + str(len(prot_seq_dict)) + ' protiens in input fasta\n')
-    subprocess.call(shlex.split(path_dict['mafft'] + ' --thread ' + str(threads) + ' --globalpair --treeout ' + out_dir + '/flprots.fa'),stdout = open(out_dir + '/flprots.mafft','w'), stderr = open('/dev/null'))
+    subprocess.call(shlex.split(path_dict['mafft'] + ' --thread ' + str(threads) + ' --globalpair --treeout ' + protein_fasta),stdout = open(out_dir + '/flprots.mafft','w'), stderr = log_file)
     prottree = ete3.Tree(open(out_dir + '/flprots.fa.tree').read() + ';')
     clusters = []
     dont_append = False
@@ -933,7 +933,7 @@ def main(args):
         if args.cutoff < 1.0:
             clusters,prot_seq_dict = build_clusters(args.output_dir + '/flprots.fa',
                                                     args.output_dir,
-                                                    args.threads,args.cutoff, path_dict)
+                                                    args.threads,args.cutoff, path_dict,run_log)
             output_fastas(clusters,prot_seq_dict,args.search_mode,
                           args.output_dir + '/clusters', args.ref_genome, args.annotations)
         else:
@@ -1053,6 +1053,7 @@ if __name__ == "__main__":
 #
 # features to add:
 # -genewise result filtering (by what?)
+# -make limit on minimum candidate locus length
 # -function to generate augustus profiles
 # -evaluation of cluster matches (number, length, "goodness", etc.)
 # -automated cluster selection by conservation (select relatively gapless, conserved clusters for continued proccessing to add in annotation efforts)

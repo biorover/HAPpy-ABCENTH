@@ -283,7 +283,7 @@ def annotations2fl(annotations,ref_genome,output_file):
     for i in range(len(annotations)):
         sp_genome = genome.Genome(ref_genome[i])
         sp_genome.read_gff(annotations[i])
-        fasta_out.write(sp_genome.annotations.get_fasta('transcript',seq_type = 'protein'))
+        fasta_out.write(sp_genome.annotations.get_fasta('transcript',seq_type = 'protein') + "\n")
     fasta_out.close()
 
 def build_clusters(protein_fasta,out_dir,threads,dthresh,path_dict,log_file):

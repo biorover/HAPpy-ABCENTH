@@ -936,6 +936,8 @@ def main(args):
                                                     args.threads,args.cutoff, path_dict,run_log)
             output_fastas(clusters,prot_seq_dict,args.search_mode,
                           args.output_dir + '/clusters', args.ref_genome, args.annotations)
+            del clusters
+            del prot_seq_dict
         else:
             shutil.copyfile(args.output_dir + '/flprots.fa',args.output_dir + '/clusters/flprots.fa')
     if args.fasta_dir:

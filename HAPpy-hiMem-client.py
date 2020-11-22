@@ -84,7 +84,13 @@ def main():
     if sys.argv[1] == 'output_fastas'):
         clusters = pickle.load(open('_clusters.pkl','rb'))
         prot_seq_dict = pickle.load(open('_psd.pkl','rb'))
-        output_fastas(clusters,prot_seq_dict,sys.argv[2],sys.argv[3], sys.argv[4], sys.argv[5])
+        if '[' in sys.argv[4]:
+            ref_genomes = eval(sys.argv[4])
+            annotations = eval(sys.argv[5])
+        else:
+            ref_genomes = sys.argv[4]
+            annotatios = sys.argv[5]
+        output_fastas(clusters,prot_seq_dict,sys.argv[2],sys.argv[3],ref_genomes, annotations)
 
 if __name__ == "__main__":
     main()

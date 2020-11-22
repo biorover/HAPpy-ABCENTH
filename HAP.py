@@ -872,8 +872,8 @@ def main(args):
             clusters,prot_seq_dict = build_clusters(args.output_dir + '/flprots.fa',
                                                     args.output_dir,
                                                     args.threads,args.cutoff, path_dict,run_log)
-            pickle.dump(clusters,'_clusters.pkl')
-            pickle.dump(prot_seq_dict,'_psd.pkl')
+            pickle.dump(clusters,open('_clusters.pkl','w'))
+            pickle.dump(prot_seq_dict,open('_psd.pkl','w'))
             subprocess.call(['python','HAPpy-hiMem-client.py','output_fastas',args.search_mode,
                           args.output_dir + '/clusters', args.ref_genome, args.annotations])
             del clusters

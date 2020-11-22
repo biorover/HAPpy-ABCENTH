@@ -17,6 +17,7 @@ import shlex
 import tempfile
 from collections import defaultdict,deque
 from intervaltree import IntervalTree,Interval
+import pickle
 
 def happy_logo():
     return """            _______  _______                    _
@@ -328,69 +329,6 @@ def build_clusters(protein_fasta,out_dir,threads,dthresh,path_dict,log_file):
     if not dont_append:
         clusters.append(prottree.get_leaf_names())
     return clusters,prot_seq_dict
-
-def output_fastas(clusters, prot_seq_dict, search_mode, fasta_dir,ref_genome_list = None,annotations = None):
-    """Uses clusters dictionary built by "build_clusters" to break input sequences into fastas\
-    for individual clusters. If search_mode = "exons", builds fastas for each exon."""
-    sys.stderr.write('writing fastas for ' + str(len(clusters)) + ' clusters\n')
-    cluster_dict = {}
-    lengths_dict = {}
-    for cluster_index in range(len(clusters)):
-        cluster = clusters[cluster_index]
-        exon_file_root = fasta_dir + "/cluster" + str(cluster_index)
-        cluster_dict[cluster_index] = []
-        exon_number = None
-        exon_phases = None
-        exon_lengths = None
-        for seqname in cluster:
-            transcript_id = "_".join(seqname.split("_")[1:]) # because mafft adds "{number}_" to the front of the seq names
-            if search_mode == "fl":
-                seq_out = open(exon_file_root + '.fa','a')
-                seq_out.write(">" + transcript_id + "\n" + prot_seq_dict[transcript_id] + '\n')
-                seq_out.close()
-            elif search_mode == "exons":
-                ref_genomes = []
-                for i in range(len(ref_genome_list)):
-                    ref_genomes.append(genome.Genome(ref_genome_list[i]))
-                    ref_genomes[-1].read_gff(annotations[i])
-                for ref_genome in ref_genomes:
-                    try:
-                        cluster_dict[cluster_index].append(ref_genome.annotations.transcript[transcript_id])
-                    except KeyError:
-                        continue
-                    ##This doesn't really fit the new program logic but might get re-incorporated depending on how I
-                    ##decide to handle exon-based candidate loci parsing
-                    #seq_out = open(exon_file_root + 'fullLenForHMM.fa','a')
-                    #seq_out.write(ref_genome.annotations.transcript[transcript_id].get_fasta(seq_type='protein') + '\n')
-                    #seq_out.close()
-                    if not exon_number:
-                        exon_number = len(ref_genome.annotations.transcript[transcript_id].child_list)
-                    else:
-                        if len(ref_genome.annotations.transcript[transcript_id].child_list) != exon_number:
-                            sys.stderr.write("uh oh, transcripts with varying number of exons in: cluster " + str(cluster_index) + ", specifically gene " + transcript_id)
-                            continue
-                    sortlist = []
-                    for CDS_id in ref_genome.annotations.transcript[transcript_id].child_list:
-                        sortlist.append((ref_genome.annotations.CDS[CDS_id].get_coords(),CDS_id))
-                    sortlist.sort()
-                    if ref_genome.annotations.transcript[transcript_id].strand == "-":
-                        sortlist.reverse()
-                    if not exon_phases:
-                        exon_phases = []
-                        exon_lengths = []
-                        current_phase = [0,0]
-                        for cds_info in sortlist:
-                            current_phase[1] = (current_phase[0] + cds_info[0][1] - cds_info[0][0] + 1) % 3
-                            exon_lengths.append((cds_info[0][1] - current_phase[0] - cds_info[0][0] + 1) / 3)
-                            exon_phases.append(current_phase[:])
-                            current_phase[0] = current_phase[1]
-                    for CDS_index in range(len(sortlist)):
-                        cds_out = open(exon_file_root + "exon" + str(CDS_index) + 'of' + str(exon_number - 1) + 'phases' + str(exon_phases[CDS_index][0]) + 'and' + str(exon_phases[CDS_index][1])+ '.fa','a')
-                        CDS_id = sortlist[CDS_index][1]
-                        phase_slice_offset = (3 - exon_phases[CDS_index][0]) % 3
-                        cds_out.write(">" + transcript_id + "-" + str(CDS_index) + '\n' + genome.Sequence(ref_genome.annotations.CDS[CDS_id].get_seq()[phase_slice_offset:]).translate() + '\n')
-                        cds_out.close()
-                    lengths_dict[cluster_index] = exon_lengths[:]
 
 def build_hmms(fasta_dir,out_dir,path_dict,mafft_options,threads,pre_aligned = False):
     """creates hidden markov models for every fasta in the "fasta_dir" using hmmbuild
@@ -934,8 +872,10 @@ def main(args):
             clusters,prot_seq_dict = build_clusters(args.output_dir + '/flprots.fa',
                                                     args.output_dir,
                                                     args.threads,args.cutoff, path_dict,run_log)
-            output_fastas(clusters,prot_seq_dict,args.search_mode,
-                          args.output_dir + '/clusters', args.ref_genome, args.annotations)
+            pickle.dump(clusters,'_clusters.pkl')
+            pickle.dump(prot_seq_dict),'_psd.pkl')
+            subprocess.call(['python','HAPpy-hiMem-client.py','output_fastas',args.search_mode,
+                          args.output_dir + '/clusters', args.ref_genome, args.annotations])
             del clusters
             del prot_seq_dict
         else:

@@ -81,7 +81,7 @@ def output_fastas(clusters, prot_seq_dict, search_mode, fasta_dir,ref_genome_lis
                     lengths_dict[cluster_index] = exon_lengths[:]
                     
 def main():
-    if sys.argv[1] == 'output_fastas'):
+    if sys.argv[1] == 'output_fastas':
         clusters = pickle.load(open('_clusters.pkl','rb'))
         prot_seq_dict = pickle.load(open('_psd.pkl','rb'))
         if '[' in sys.argv[4]:

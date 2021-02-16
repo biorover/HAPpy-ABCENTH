@@ -60,7 +60,15 @@ query_args.add_argument('--annotations', nargs = "*", default = None, help = 'On
 query_args.add_argument('--ref_genome', nargs = "*", default = None, help = 'One or more genomes of closely related species\
                     (you should provide one genome for each gtf given for --annotations and ensure the order is the same; genomes should \
                     be in fasta format)')
-run_args.add_argument('--program_filepaths', default = None,
+query_args.add_argument('--thammerin_results', dest = 'thammerin_results', default = None, help = 'pre-computed thammerin results')
+query_args.add_argument('--protein_seqs', default = None,
+                    help = 'homologous protein sequences (can replace -a + -r for the "full_length" runmode)')
+query_args.add_argument('--hmm', default = None, help = "Protein HMM (built with HMMER v3 hmmbuild)")
+query_args.add_argument('--fasta_dir', default = None, help = 'Directory of UNALIGNED fasta files for predefined clusters')
+query_args.add_argument('--alignment_dir', default = None, help = 'Directory of ALIGNED fasta files for predefined clusters')
+query_args.add_argument('--hmm_dir', default = None, help = "Directory of HMM files for predefined clusters")
+query_args.add_argument('--hit_table', default = None, help = 'precomputed hit table')
+arun_args.add_argument('--program_filepaths', default = None,
                     help = 'optional comma seperated list of file paths for programs not in PATH variable, formated as "programName1=/path/to/program1,programName2=/path/to/program2"')
 addl_args.add_argument('--min_orf_size', default = 10, type = int,
                     help = 'minimum size for orfs to be search by hmmsearch')
@@ -68,8 +76,7 @@ addl_args.add_argument('--cutoff', default = 1.0, type = float,
                     help = 'Distance cutoff for seperating proteins into clusters. Accepts values from zero to one, default = 1.0 (no breaking into clusters)')
 addl_args.add_argument('--threads', default = 1, type = int,
                     help = "number of threads to be used with processes that support multithreading (mafft and thammerin)")
-query_args.add_argument('--thammerin_results', dest = 'thammerin_results', default = None, help = 'pre-computed thammerin results')
-addl_args.add_argument('--buffer', dest = 'buffer', default = 5000, type = int,
+ddl_args.add_argument('--buffer', dest = 'buffer', default = 5000, type = int,
                     help = 'buffer on either side of loci identified to feed into gene predictor (default = 5000)')
 addl_args.add_argument('--evalue', default = 0.01, type = float, help = 'Evalue cutoff for thammerin')
 addl_args.add_argument('--genome_orfs', default = None, help = 'ORFs file from previous thammerin run (saves about five minutes for insect-sized genomes)')
@@ -78,17 +85,10 @@ addl_args.add_argument('--search_mode', default = 'fl', help = 'Search with full
                     the "--annotator ABCENTH" option.')
 addl_args.add_argument('--annotator', default = "genewise", help = 'Program to use for building final annotations. Currently the options \
                     are "genewise" (default) and "ABCENTH". I plan to add support for hint-guided AUGUSTUS at some point.')
-query_args.add_argument('--protein_seqs', default = None,
-                    help = 'homologous protein sequences (can replace -a + -r for the "full_length" runmode)')
-query_args.add_argument('--hmm', default = None, help = "Protein HMM (built with HMMER v3 hmmbuild)")
-query_args.add_argument('--fasta_dir', default = None, help = 'Directory of UNALIGNED fasta files for predefined clusters')
-query_args.add_argument('--alignment_dir', default = None, help = 'Directory of ALIGNED fasta files for predefined clusters')
-query_args.add_argument('--hmm_dir', default = None, help = "Directory of HMM files for predefined clusters")
 run_args.add_argument('--augustus_profile_dir', default = None, help = 'directory of augustus profiles corresponding to entries in "--hmm_dir" \
                     (for optional use with "--hmm_dir <dir>" and "--annotator augustus")')
 run_args.add_argument('--augustus_species', default = 'fly', help = 'species name for augustus parameters (default = "fly")')
 addl_args.add_argument('--output_dir', default = 'HAPpy_results',help = 'folder to write results to (default = "HAPpy_results")')
-query_args.add_argument('--hit_table', default = None, help = 'precomputed hit table')
 addl_args.add_argument('--overwrite', default = False, type = bool, help = 'overwrite specified output dir (default = False)')
 run_args.add_argument('--cluster_mafft_options', default = '--globalpair --maxiterate 1000', help = 'options for aligning sequences \
                     within clusters using mafft (default = "--globalpair --maxiterate 1000")')
@@ -249,7 +249,7 @@ def args_check(args):
     if args.search_mode == "exons" and not args.annotations:
         sys.exit('Argument error: "--search_mode exons" can only be used with the input options "--annotations" + "--ref_genome"')
     if args.annotator == "ABCENTH":
-        if args.search_mode != "exons":
+        if args.search_mode != "exons" and not args.hmm_dir:
             sys.exit('Argument error: "--annotator ABCENTH" can only be used with "--search_mode exons" and the input options "--annotations" + "--ref_genome"')
 
 def translate_genome(genome_fasta,out_file,min_orf_size):

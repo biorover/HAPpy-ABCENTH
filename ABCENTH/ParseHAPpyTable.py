@@ -15,7 +15,7 @@ if args.table:
         start_phase = fields[0].split('phases')[1].split('and')[0]
         end_phase = fields[0].split('and')[1].split('.')[0]
         aa_len = fields[12]
-        print('\t'.join([cluster] + fields[1:] + [start_phase,end_phase,aa_len,exon_number,number_of_exons]))
+        print('\t'.join([cluster] + fields[1:12] + [start_phase,end_phase,aa_len,exon_number,number_of_exons]))
 
 elif args.hmm_dir:
     for hmm_file in os.listdir(args.hmm_dir):

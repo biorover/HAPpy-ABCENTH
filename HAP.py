@@ -68,7 +68,7 @@ query_args.add_argument('--fasta_dir', default = None, help = 'Directory of UNAL
 query_args.add_argument('--alignment_dir', default = None, help = 'Directory of ALIGNED fasta files for predefined clusters')
 query_args.add_argument('--hmm_dir', default = None, help = "Directory of HMM files for predefined clusters")
 query_args.add_argument('--hit_table', default = None, help = 'precomputed hit table')
-arun_args.add_argument('--program_filepaths', default = None,
+run_args.add_argument('--program_filepaths', default = None,
                     help = 'optional comma seperated list of file paths for programs not in PATH variable, formated as "programName1=/path/to/program1,programName2=/path/to/program2"')
 addl_args.add_argument('--min_orf_size', default = 10, type = int,
                     help = 'minimum size for orfs to be search by hmmsearch')
@@ -76,7 +76,7 @@ addl_args.add_argument('--cutoff', default = 1.0, type = float,
                     help = 'Distance cutoff for seperating proteins into clusters. Accepts values from zero to one, default = 1.0 (no breaking into clusters)')
 addl_args.add_argument('--threads', default = 1, type = int,
                     help = "number of threads to be used with processes that support multithreading (mafft and thammerin)")
-ddl_args.add_argument('--buffer', dest = 'buffer', default = 5000, type = int,
+addl_args.add_argument('--buffer', dest = 'buffer', default = 5000, type = int,
                     help = 'buffer on either side of loci identified to feed into gene predictor (default = 5000)')
 addl_args.add_argument('--evalue', default = 0.01, type = float, help = 'Evalue cutoff for thammerin')
 addl_args.add_argument('--genome_orfs', default = None, help = 'ORFs file from previous thammerin run (saves about five minutes for insect-sized genomes)')

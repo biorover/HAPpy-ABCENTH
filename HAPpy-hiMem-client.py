@@ -23,6 +23,11 @@ def output_fastas(clusters, prot_seq_dict, search_mode, fasta_dir,ref_genome_lis
     sys.stderr.write('writing fastas for ' + str(len(clusters)) + ' clusters\n')
     cluster_dict = {}
     lengths_dict = {}
+    if search_mode == 'exons':
+        ref_genomes = []
+        for i in range(len(ref_genome_list)):
+            ref_genomes.append(genome.Genome(ref_genome_list[i]))
+            ref_genomes[-1].read_gff(annotations[i])
     for cluster_index in range(len(clusters)):
         cluster = clusters[cluster_index]
         exon_file_root = fasta_dir + "/cluster" + str(cluster_index)
@@ -37,10 +42,6 @@ def output_fastas(clusters, prot_seq_dict, search_mode, fasta_dir,ref_genome_lis
                 seq_out.write(">" + transcript_id + "\n" + prot_seq_dict[transcript_id] + '\n')
                 seq_out.close()
             elif search_mode == "exons":
-                ref_genomes = []
-                for i in range(len(ref_genome_list)):
-                    ref_genomes.append(genome.Genome(ref_genome_list[i]))
-                    ref_genomes[-1].read_gff(annotations[i])
                 for ref_genome in ref_genomes:
                     try:
                         cluster_dict[cluster_index].append(ref_genome.annotations.transcript[transcript_id])

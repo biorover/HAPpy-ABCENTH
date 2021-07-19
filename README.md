@@ -4,7 +4,23 @@ A pipeline for homology based annotation utilizing exon structural conservation
 ## Installation/dependencies
 This is a ready-to-go python script- as long as all of the python modules are left in the same directory it should work (provided the dependencies are installed).
 
-Dependencies: python (inlcuding numpy, ete2, and a few other common libraries), HMMER version 3, MAFFT, thmmerin.py HMMER wrapper (included in git archive but needs to be in the system path)
+Dependencies: python (inlcuding numpy, ete3, and a few other common libraries), HMMER version 3, MAFFT. The included "conda_env.yaml" file contains specifications for a conda environment with all necessary dependencies (see below)
+
+Conda install (requires git and conda installations):
+```
+git clone https://github.com/biorover/HAPpy-ABCENTH.git
+cd HAPpy-ABCENTH
+hapdir=$PWD
+conda env create -n happy -f conda_env.yaml
+conda activate happy
+cd $CONDA_PREFIX
+mkdir -p ./etc/conda/activate.d
+mkdir -p ./etc/conda/deactivate.d
+touch ./etc/conda/activate.d/env_vars.sh
+touch ./etc/conda/deactivate.d/env_vars.sh
+echo "export PATH=\$PATH:$hapdir" > ./etc/conda/activate.d/env_vars.sh
+conda activate happy
+```
 
 ## Usage
 HAPpy can be used in many different ways (full options list available with "python HAP.py -h"), but there's two particularly common use cases.

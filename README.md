@@ -12,7 +12,23 @@ HAPpy can be used in many different ways (full options list available with "pyth
     python HAP.py --genome <target genome fasta> --protein_seqs <protein fasta> [--threads <nthreads>]
  
  2. Annotation of tandemly duplicated genes from large gene families with conserved exon structure (e.g. insect odorant receptors)
-    python HAP.py --genome <target genome fasta> --ref_genome <one or more reference genome fastas> --annotations <one gtf per ref genome> --cutoff <p distance at which proteins are clustered, 0.5 for ant ORs> --search_mode exons --annotator ABCENTH
+    If you have annotations in gff form:
+    ```
+    python HAP.py --genome <target genome fasta> --ref_genome <one or more reference genome fastas> \
+    --annotations <one gtf per ref genome> --cutoff <p distance at which proteins are clustered, 0.45 for ant ORs> \
+    --search_mode exons --annotator ABCENTH
+    ```
+    If you have pre-built hmm files for each exon in each cluster:
+    ```
+    python HAP.py --genome <target genome fasta> --hmm_dir <path to hmm folder> \
+    --annotator ABCENTH --threads <# threads> --output_dir <output directory>
+    ```
+    Either way, the output gtf will be in \<output directory\>/ABCENTH.gtf
+    If a gene name ends in a number, it's a complete model. Otherwise, the following letters indicate gene model issues:
+        - P: Pseudogene (no compatible splice sites for exon, frameshift in exon, or stop codon in exon)
+        - N: Missing N terminal
+        - C: Missing C terminal
+        - I: Missing internal section
 
 ## The pipeline
 This package consists of two separate programs: HAP.py (Homology Annotation Pipeline) and ABCENTH (Annotation Based on Conserved Exons Noticed Through Homology). HAP.py locates putative genetic loci through homology and feeds them into a gene predictor, which can be ABCENTH (also can use genewise).

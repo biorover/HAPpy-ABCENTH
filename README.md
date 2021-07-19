@@ -10,9 +10,10 @@ Conda install (requires git and conda installations):
 ```
 git clone https://github.com/biorover/HAPpy-ABCENTH.git
 cd HAPpy-ABCENTH
-hapdir=$PWD
 conda env create -n happy -f conda_env.yaml
 conda activate happy
+#To be able to call happy directly, also do the following
+hapdir=$PWD
 cd $CONDA_PREFIX
 mkdir -p ./etc/conda/activate.d
 mkdir -p ./etc/conda/deactivate.d

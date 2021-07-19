@@ -55,8 +55,8 @@ for hit in sort_list:
     elif args.input_type == "gtf":
         locus = fields[0]
     coords = (start,stop)
-    start_key = start / chunksize
-    stop_key = stop / chunksize
+    start_key = int(start / chunksize)
+    stop_key = int(stop / chunksize)
     keys_list = [(locus,start_key)]
     if start_key != stop_key:
         for i in range(stop_key - start_key):
@@ -70,7 +70,7 @@ for hit in sort_list:
                 start < occupied_coord[0] < stop:
                     keep = False
                     if args.output == "overlapping":
-                        print delimiter.join(fields)
+                        print(delimiter.join(fields))
                     break
     if keep:
         for key in keys_list:       
@@ -81,6 +81,6 @@ for hit in sort_list:
         lines_list.append(delimiter.join(fields))
 
 if args.output == "non-overlapping":
-    print "\n".join(lines_list)
+    print("\n".join(lines_list))
 
 

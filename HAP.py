@@ -934,6 +934,18 @@ def main(args):
     for line in filtered_candidate_loci:
         candidate_locus_file.write("\t".join(line) + '\n')
     candidate_locus_file.close()
+    if "ABCENTH" in args.annotator:
+        happydir = "/".join(__file__.split("/")[:-1])
+        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH/ParseHAPpyTable.py --table ' + args.output_dir + '/sorted_hit_table.tsv'),
+            stdout = open(args.output_dir + '/abcenth_hit_table.tsv','w'))
+        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH//HitTabFilter.py --table ' + args.output_dir + '/abcenth_hit_table.tsv'),
+            stdout = open(args.output_dir + '/abcenth_filtered_hit_table.tsv','w'))
+        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH/ParseHAPpyTable.py --hmm_dir '  + hmm_dir),
+            stdout = open(args.output_dir + '/abcenth_cluster_info.tsv','w'))
+        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH/ABCENTH.py --genome ' + args.target_genome + ' --table ' +
+            args.output_dir + '/abcenth_filtered_hit_table.tsv --query_exon_info_table ' + args.output_dir + 
+            '/abcenth_cluster_info.tsv'), stdout = open(args.output_dir + '/ABCENTH.gtf','w'))
+        
     if 'genewise' in args.annotator:
         os.environ['WISECONFIGDIR'] = path_dict['program_dir'] + '/' + 'cfgFiles'
         os.makedirs(args.output_dir + '/genewise')

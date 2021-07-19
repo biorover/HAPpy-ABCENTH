@@ -5,6 +5,7 @@ import genome_fork as genome
 import re
 import subprocess
 import tempfile
+import shlex
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Finds orfs between splice sites (or start and stop sites) which match a given \
@@ -82,8 +83,8 @@ def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase, evalue= "0.05"
         orf_file.write(">coords" + str(coords_index) + '\n' +
                        pep_seq + '\n' )
     orf_file.flush()
-    hmmout = subprocess.check_output('hmmsearch --max -E ' + evalue + ' ' + hmm_profile + ' ' + orf_file.name,
-                                     shell = True).split('\n')
+    hmmout = subprocess.check_output(shlex.split('hmmsearch --max -E ' + evalue + ' ' + hmm_profile + ' ' + 
+        orf_file.name)).decode('utf8').split('\n')
     found_hit = False
     for line in hmmout:
         if line[:2] == ">>":
@@ -103,13 +104,13 @@ def main():
         else:
             seqcounter += 1
             if seqcounter > 1:
-                print "multiple seqs in fasta- not yet supported"
+                print("multiple seqs in fasta- not yet supported")
                 break    
     exon_coords = orf_finder(sequence,args.startphase, args.stopphase, args.strand,
                              args.expected_aa_length, args.length_variance, args.search_coords,
                              args.is_start, args.is_stop, hmm_profile = args.hmm_profile)
     for coords in exon_coords:
-        print coords
+        print(coords)
 
 if __name__ == "__main__":
     main()

@@ -4,12 +4,12 @@
 #proper splice site modeler (perhaps optimizing splice site score vs. difference from expected length), maybe MAYBE taking
 #into account non-conserved exon phase.
 
-
+#   Known issues:
+#Will return annotations with arbitrary missing exons, but can't handle two exons missing in a row
 
 import argparse
 import genome_fork as genome
 from FindOrfs import orf_finder
-
 
 
 parser = argparse.ArgumentParser(description='ABCENTH, Annotation Based on Conserved Exons Noticed Through Homology. Takes a table of \
@@ -34,14 +34,9 @@ parser.add_argument('--log', default = None, help = "file to write a log for deb
 
 args = parser.parse_args()
 
-class dummy_file():
-    def write(self, text):
-        pass
 
 if args.log:
     log_file = open(args.log,'w')
-else:
-    log_file = dummy_file()
 
 if args.sep == "comma":
     delimiter = ','
@@ -199,52 +194,17 @@ for line in open(args.table):
 target_genome = genome.Genome(args.genome)
 
 #Defines a few operations that will need to be executed in different parts of the following code. NOT independent functions!
-def recover_missing_exon(strand,cluster,exon_numbers,includes_start,includes_stop, search_coords):
-    log_file.write('Exons skipped, attempting to recover.\n')
-    # V- I think I fixed it
-    #needs to be fixed to adjust phases in case not all exons are found
-    found_coords_list = []
-    adjust_next_phase = 0
-    for exon_number in exon_numbers:
-        if includes_start and exon_number == exon_numbers[0]:
-            is_start,is_stop = True,False
-        elif includes_stop and exon_number == exon_numbers[-1]:
-            is_start,is_stop = False,True
-        else:
-            is_start,is_stop = False,False
-        if "query_exon_info_table" in args:
-            missing_exon_info = exon_info_dict[str(cluster) + ':' + str(exon_number)]
-            missing_coords = orf_finder(target_genome.genome_sequence[locus],int(missing_exon_info[3]),
-                                                 int(missing_exon_info[4]),strand, int(missing_exon_info[5]),5, search_coords,
-                                                 is_stop = is_stop,is_start = is_start,hmm_profile = missing_exon_info[6])
+def recover_missing_exon(strand,cluster,exon_number,is_start,is_stop, search_coords):
+    if "query_exon_info_table" in args:
+        missing_exon_info = exon_info_dict[str(cluster) + ':' + str(exon_number)]
+        missing_coords = orf_finder(target_genome.genome_sequence[locus],int(missing_exon_info[3]),
+                                             int(missing_exon_info[4]),strand, int(missing_exon_info[5]),5, search_coords,
+                                             is_stop = is_stop,is_start = is_start,hmm_profile = missing_exon_info[6])
+    if args.log:
         log_file.write(locus + '\t' + str(tstart) + '\t' + str(cluster) + '\t' + str(exon_number) + '\t' + str(search_coords) + '\t' + str(missing_coords) + '\n')
-        if missing_coords != []:
-            if found_coords_list != []:
-                if ((found_coords_list[-1][1] > missing_coords[0] and last_strand == "+") or
-                (found_coords_list[-1][0] < missing_coords[1] and last_strand == "-")):
-                    adjust_next_phase = ( int(missing_exon_info[3]) - int(missing_exon_info[4]) ) % 3
-                    continue
-            if last_strand == "+":
-                missing_coords[0] += adjust_next_phase
-            elif last_strand == "-":
-                missing_coords[1] -=  adjust_next_phase
-            found_coords_list.append(missing_coords + [False])
-            adjust_next_phase = 0
-        else:
-            adjust_next_phase = (adjust_next_phase + int(missing_exon_info[3]) - int(missing_exon_info[4]) ) % 3
-    if adjust_next_phase != 0 and found_coords_list != []:
-        if last_strand == "+":
-            found_coords_list[-1][1] -= adjust_next_phase % 3
-        elif last_strand == "-":
-            found_coords_list[-1][0] += adjust_next_phase % 3
-    if strand == "-":
-        found_coords_list.reverse()
-    if found_coords_list != []:
-        working_annotation.extend(found_coords_list)
-        if len(found_coords_list) == len(exon_numbers):
-            return True
-        else:
-            return "I"
+    if missing_coords != []:
+        working_annotation.append(missing_coords + [False])
+        return True
     else:
         return False
 
@@ -252,10 +212,9 @@ def recover_missing_exon(strand,cluster,exon_numbers,includes_start,includes_sto
 def last_annotation_almost_complete():
     if last_strand == '-':
         is_start, is_stop, if_missing = True,False,"N"
-        recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],range(last_exon_num),is_start,is_stop,[max((last_tend,last_tstart)),min(max((last_tend,last_tstart)) + 2000,min((tstart,tend)))])
     elif last_strand == '+':
         is_start,is_stop, if_missing = False,True,"C"
-        recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],range(last_exon_num + 1, last_num_exons),is_start,is_stop,[max((last_tend,last_tstart)),min(max((last_tend,last_tstart)) + 2000,min((tstart,tend)))])
+    recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],eval(str(last_exon_num) + last_strand + "1"),is_start,is_stop,[max((last_tend,last_tstart)),min(max((last_tend,last_tstart)) + 2000,min((tstart,tend)))])
     if not recovered:
         if last_strand == '-' and last_startphase != 0:
             working_annotation[-1][1] = working_annotation[-1][1] - ((3 - last_startphase) % 3)
@@ -263,14 +222,12 @@ def last_annotation_almost_complete():
             working_annotation[-1][2] = working_annotation[-1][2] + if_missing
         else:
             working_annotation[-1][2] = if_missing
-    log_file.write('writing almost complete annotation "' + working_name[0] + '". \n' )
     print(exontuples2gff(working_annotation, last_strand,working_name[0],locus))
 
 
 #Here we go
 annotation_list = []
 for locus in locus_dict.keys():
-    log_file.write('starting annotation of locus: ' + locus + '\n')
     working_annotation = []
     working_name = ["oops",0]
     #sets up variables needed for determining whether or not to start a new annotation
@@ -306,109 +263,95 @@ for locus in locus_dict.keys():
         if start_coord_index == 0:
             continue
         #Determines if exon is good and whether or not to start a new annotation
-        if from_start == 0 and (nextfrom_start == 1 or working_annotation == [] or last_from_start > nextfrom_start or last_strand != nextstrand == strand):
+        if from_start == 0 and (nextfrom_start == 1 or working_annotation == []):
             #found first/last exon! Starting new annotation
-            if len(working_annotation) != 0:
-                #last annotation had something! Bulding an incomplete gene model for it (this can be scrapped later, after all)
+            if last_from_end == 1 and len(working_annotation) != 0:
+                #last annotation was almost there! Bulding an incomplete gene model for it (this can be scrapped later, after all)
                 last_annotation_almost_complete()
             working_name = [hit[0] +"coords" + locus + "-" + str(tstart),float(hit[11])]
-            log_file.write('found start/end of gene, beggining new annotation near ' + str(tstart) + ' with working name "' + working_name[0] + '\n')
             if strand == "+":
                 working_annotation = [exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_start = True)]
             elif strand == '-':
                 working_annotation = [exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_stop = True)]
-        elif (from_start == 1 and (working_annotation == [] or tstart - last_tstart > args.maxintron or
-                                  (nextstrand != last_strand == strand or last_from_start > nextfrom_start > from_start or nextnum_exons == num_exons != last_num_exons))
-             ) or last_from_start > nextfrom_start > from_start or last_strand != nextstrand == strand or tstart - last_tstart > args.maxintron:
-            #looks like we've hit a new gene even though we didn't get the first exon. Starting new annotation
-            if len(working_annotation) != 0:
-                #last annotation had something! Bulding an incomplete gene model for it (this can be scrapped later, after all)
+        elif from_start == 1 and (working_annotation == [] or tstart - last_tstart > args.maxintron or
+                                  (nextstrand != last_strand or not nextfrom_start - last_from_start in [1,2] or not nextnum_exons == last_num_exons)):
+            #found second/second-to-last exon and it seems like the first/last one was missing. Starting new annotation
+            if last_from_end == 1 and len(working_annotation) != 0:
+                #last annotation was almost there! Bulding an incomplete gene model for it (this can be scrapped later, after all)
                 last_annotation_almost_complete()
             working_name = [hit[0] +"coords" + locus + "-" + str(tstart),float(hit[11])]
             working_annotation = []
-            log_file.write('found almost start/end of gene, beggining new annotation near ' + str(tstart) + ' with working name "' + working_name[0] + '\n')
             #OK, now trying to recover first/last exon
             if strand:
                 if strand == '-':
-                    recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],range(exon_num + 1,num_exons + 1),False,True, [max((min((tend,tstart)) - 2000,max((last_tend,last_tstart)))),min((tend,tstart))])
+                    me_is_start, me_is_stop = False,True
                 elif strand == '+':
-                    recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],range(exon_num),True,False, [max((min((tend,tstart)) - 2000,max((last_tend,last_tstart)))),min((tend,tstart))])
+                    me_is_start,me_is_stop =  True,False
+                recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],eval(str(exon_num) + strand + "-1"),me_is_start,me_is_stop, [max((min((tend,tstart)) - 2000,max((last_tend,last_tstart)))),min((tend,tstart))])
             else:
                 recovered = False
             #Now adding found exon
             if strand == "+" and working_annotation == []:
-                working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,0,endphase,target_genome.genome_sequence,locus,is_start = True,nevermind_atg = True))
+                working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_start = True,nevermind_atg = True))
                 if_fail = "N"
             else:
                 working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
                 if_fail = "C"
             if len(working_annotation) < 2:
                 if working_annotation[0][2]:
-                    working_annotation[0][2] = working_annotation[0][2] + if_fail #Flags as incomplete because first/last exon was missed
+                    working_annotation[0][2] = working_annotation[0][2] + if_fail #Flags as pseudogene because first/last exon was missed
                 else:
                     working_annotation[0][2] = if_fail
-        ##Shouldn't need this since I'm starting a new annotation anytime the intron was too long
-        # elif tstart - last_tstart > args.maxintron:
-        #     #Intron was too long! Clearing annotation (or writing if almost done)
-        #     if last_from_end == 1 and working_annotation != []:
-        #         last_annotation_almost_complete()
-        #     working_annotation = []
-        #     working_name = ["oops",0]
-        elif num_exons == last_num_exons and working_annotation != [] and strand == last_strand and from_start > last_from_start:
+        elif tstart - last_tstart > args.maxintron:
+            #Intron was too long! Clearing annotation (or writing if almost done)
+            if last_from_end == 1 and working_annotation != []:
+                last_annotation_almost_complete()
+            working_annotation = []
+            working_name = ["oops",0]
+        elif num_exons == last_num_exons and working_annotation != [] and strand == last_strand and (from_start == last_from_start + 1 or (from_start == last_from_start + 2 and nextfrom_start != last_from_start + 1)):
             #Found the next exon in the progression!
             if float(hit[11]) > working_name[1]:
                 working_name == [hit[0] +"coords" + locus + "-" + str(tstart),float(hit[11])]
-            if from_start > last_from_start + 1:
-                #One or more exons were skipped! Attempting to recover
-                recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],range(min([last_exon_num + 1,exon_num + 1]),max([last_exon_num ,exon_num])),False,False,[max((last_tend,last_tstart)),min((tstart,tend))])
+            if from_start == last_from_start + 2:
+                #An exon was skipped! Attempting to recover
+                recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],eval(str(exon_num) + strand + "-1"),False,False,[max((last_tend,last_tstart)),min((tstart,tend))])
             if from_end != 0:
                 working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
-                if from_start > last_from_start + 1 and recovered != True:
+                if from_start == last_from_start + 2 and not recovered:
                     #need to adjust exon start to account for mis-matched phase
                     if working_annotation[-1][2]:
                         working_annotation[-1][2] = working_annotation[-1][2] + "I"
                     else:
                         working_annotation[-1][2] = "I"
-                    if not recovered:
-                        if strand == "+":
-                            exon_start_adjust = (last_endphase - startphase) % 3
-                            working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust
-                            log_file.write('adjusting phase for missing exon, last end-phase = ' + str(last_endphase) + ', next start-phase =' +
-                                           str(startphase) + ', exon-adjust = ' + str(exon_start_adjust) + '\n')
-                        elif strand == "-":
-                            exon_start_adjust = (endphase - last_startphase) % 3
-                            working_annotation[-2][1] = working_annotation[-2][1] - exon_start_adjust
-                            log_file.write('adjusting phase for missing exon, last end-phase = ' + str(last_endphase) + ', next start-phase =' +
-                                           str(startphase) + ', exon-adjust = ' + str(exon_start_adjust) + '\n')
+                    if strand == "+":
+                        exon_start_adjust = (last_endphase - startphase) % 3
+                        working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust
+                    elif strand == "-":
+                        exon_start_adjust = (endphase - last_startphase) % 3
+                        working_annotation[-2][1] = working_annotation[-2][1] - exon_start_adjust
             else:
                 if strand == "+":
                     working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus, is_stop = True))
                 elif strand == '-':
                     working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus, is_start = True))
-                if from_start > last_from_start + 1 and not recovered == True:
+                if from_start == last_from_start + 2 and not recovered:
                     #need to adjust exon start to account for mis-matched phase
                     if working_annotation[-1][2]:
                         working_annotation[-1][2] = working_annotation[-1][2] + "I"
                     else:
                         working_annotation[-1][2] = "I"
-                    if not recovered:
-                        if strand == "+":
-                            exon_start_adjust = (last_endphase - startphase) % 3
-                            working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust
-                            log_file.write('adjusting phase for missing exon, last end-phase = ' + str(last_endphase) + ', next start-phase =' +
-                                           str(startphase) + ', exon-adjust = ' + str(exon_start_adjust) + '\n')
-                        elif strand == "-":
-                            exon_start_adjust = (endphase - last_startphase) % 3
-                            working_annotation[-2][1] = working_annotation[-2][1] - exon_start_adjust
-                            log_file.write('adjusting phase for missing exon, last end-phase = ' + str(last_endphase) + ', next start-phase =' +
-                                           str(startphase) + ', exon-adjust = ' + str(exon_start_adjust) + '\n')
+                    if strand == "+":
+                        exon_start_adjust = (last_endphase - startphase) % 3
+                        working_annotation[-1][0] = working_annotation[-1][0] + exon_start_adjust
+                    elif strand == "-":
+                        exon_start_adjust = (endphase - last_startphase) % 3
+                        working_annotation[-2][1] = working_annotation[-2][1] - exon_start_adjust
                 print(exontuples2gff(working_annotation, strand,working_name[0],locus))
-                log_file.write('writing complete annotation "' + working_name[0] + '"\n')
                 working_annotation = []
         else:
             continue
         last_from_start,last_from_end,last_strand,last_exon_num,last_num_exons,last_startphase,last_endphase,last_tstart,last_tend = \
             from_start,from_end,strand,exon_num,num_exons,startphase,endphase,tstart,tend
-    if len(working_annotation) != 0:
-        #last annotation was almost there! Bulding an incomplete gene model for it (this can be scrapped later, after all)
-        last_annotation_almost_complete()
+    if last_from_end == 1 and len(working_annotation) != 0:
+                #last annotation was almost there! Bulding an incomplete gene model for it (this can be scrapped later, after all)
+                last_annotation_almost_complete()

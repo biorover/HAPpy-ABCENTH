@@ -252,7 +252,7 @@ def args_check(args):
         if args.search_mode != "exons" and not args.hmm_dir:
             sys.exit('Argument error: "--annotator ABCENTH" can only be used with "--search_mode exons" and the input options "--annotations" + "--ref_genome"')
 
-def translate_genome(genome_fasta,out_file,min_orf_size):
+def translate_genome(genome_fasta,out_file,min_orf_size,max_orf_size):
     target_nucdb = genome.Genome(genome_fasta)
     frame_fasta = open(out_file,'w')
     for seq_id in target_nucdb.genome_sequence:
@@ -272,7 +272,7 @@ def translate_genome(genome_fasta,out_file,min_orf_size):
             for orf in orfs:
                 orf_start = last_orf_end
                 last_orf_end = last_orf_end + 1 + len(orf)
-                if len(orf) > min_orf_size:
+                if len(orf) > min_orf_size and len(orf) < max_orf_size:
                     fasta_list.append('>' + seq_id + "_frameOffset-" + str(frame_offset) + "_orfStart-" + str(orf_start) +
                                       '\n' + orf)
         frame_fasta.write('\n'.join(fasta_list) + '\n')
@@ -901,7 +901,7 @@ def main(args):
         emit_hmm_consensi(hmm_dir,args.output_dir + '/consensus_fastas',path_dict)
     if (args.hmm_dir or args.hmm or args.fasta_dir or args.protein_seqs or args.annotations) and not args.hit_table:
         if not args.genome_orfs:
-            translate_genome(args.target_genome,args.output_dir + '/genomeOrfs.fasta',args.min_orf_size)
+            translate_genome(args.target_genome,args.output_dir + '/genomeOrfs.fasta',args.min_orf_size,10000)
             genome_orfs = args.output_dir + '/genomeOrfs.fasta'
         else:
             genome_orfs = args.genome_orfs

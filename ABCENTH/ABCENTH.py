@@ -67,6 +67,7 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
     start = None
     end = None
     pseudo = False
+    max_coord = len(seqdict[seqname]) - 1
     if strand == "+":
         phasestart_offset = (3 - qstartphase) % 3
         phasestop_offset = qendphase
@@ -166,6 +167,8 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
         else:
             pseudo = "P"
             end = pseudo_end
+    start = max([1,start])
+    end = min([end,max_coord])
     return [start,end,pseudo]
 
 #exon_finder(4179626,4179670,"-",1,40,40,0,0,cra.genome_sequence,'Chromosome3') #debug>>> exon_finder(4181323,4181442,"-",1,40,40,2,2,cra.genome_sequence,'Chromosome3') #debug

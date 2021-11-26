@@ -143,7 +143,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
                 break
     qcoords.sort()
     if qcoords != []:
-        sys.stderr.write(str(qcoords) + '\n' + str((3 - startphase) % 3) + '\n' + str(stopphase) + "\n")
+        sys.stderr.write(str(qcoords) + '\n' + str((3 - startphase) % 3) + '\n' + str(stopphase) + "\n" + strand + "\n")
         if strand == '+':
             qcoords[0][0] = qcoords[0][0] - (3 - startphase) % 3
             qcoords[-1][-1] = qcoords[-1][-1] + stopphase

@@ -92,7 +92,7 @@ def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase, evalue= "0.05"
         return []
 
 def genewisesearch(sequence,startphase,stopphase,strand,
-               hmm_profile, search_coords = [0,None]):
+               hmm_profile, search_coords = [0,None],seqname = None):
     """searches an hmm profile against a sequence (optionally within a designated sub region) to \
     find boundaries of an exon interupted by stop codons or frame shifts"""
     seqfile = tempfile.NamedTemporaryFile('w')
@@ -151,9 +151,9 @@ def genewisesearch(sequence,startphase,stopphase,strand,
             qcoords[0][0] = qcoords[0][0] - stopphase
             qcoords[-1][-1] = qcoords[-1][-1] + (3 - startphase) % 3
     if len(qcoords) > 1:
-        sys.stderr.write('anotherone bites the dust')
+        sys.stderr.write('anotherone bites the dust\t')
     if len(qcoords) > 0:
-        sys.stderr.write(str([k + ['P'] for k in qcoords]) + '\n')
+        sys.stderr.write(str(seqname) + '\t' + str([k + ['P'] for k in qcoords]) + '\n')
     return [k + ['P'] for k in qcoords]
 
     

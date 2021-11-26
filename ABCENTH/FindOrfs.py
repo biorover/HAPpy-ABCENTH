@@ -113,7 +113,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
     keeplines = 0
     for line in gwout:
         if line != "":
-            if line[0] == "/":
+            if line[0] == "/" and not tcoords[1]:
                 tcoords[0] = None
         if len(line) > 4:
             if line[:4] == 'Bits' and not tcoords[0]:

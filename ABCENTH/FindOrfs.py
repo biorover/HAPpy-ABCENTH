@@ -107,7 +107,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
     except subprocess.CalledProcessError:
         sys.stderr.write('warning: genewise failed on one gene, continuing\n')
         return []
-    sys.stderr.write(gwout)
+    sys.stderr.write("\n".join(gwout) + "\n")
     tcoords = [None,None]
     qcoords = []
     keeplines = 0

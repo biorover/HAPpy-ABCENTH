@@ -98,10 +98,10 @@ def genewisesearch(sequence,startphase,stopphase,strand,
                hmm_profile, search_coords = [0,None]):
     """searches an hmm profile against a sequence (optionally within a designated sub region) to \
     find boundaries of an exon interupted by stop codons or frame shifts"""
-    seqfile = temp.NamedTemporaryFile('w')
+    seqfile = tempfile.NamedTemporaryFile('w')
     seqfile.write(">temp\n" + sequence[search_coords[0]:search_coords[1]] + "\n")
     seqfile.flush()
-    modelfile = temp.NamedTemporaryFile('w')
+    modelfile = tempfile.NamedTemporaryFile('w')
     subprocess.run(shlex.split('hmmconvert -2 ' + hmm_profile),stdout=modelfile)
     modelfile.flush()
     gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmm ' \

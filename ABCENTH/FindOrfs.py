@@ -107,7 +107,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
     except subprocess.CalledProcessError:
         sys.stderr.write('warning: genewise failed on one gene, continuing\n')
         return []
-    sys.stderr.write("\n".join(gwout) + "\n")
+    #sys.stderr.write("\n".join(gwout) + "\n")
     tcoords = [None,None]
     qcoords = []
     keeplines = 0
@@ -126,7 +126,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
                 if fields[7] == strand:
                     coords = [int(fields[3]) + search_coords[0],int(fields[4]) + search_coords[0]]
                     if qcoords != []:
-                        if fields[6] == '-':
+                        if fields[7] == '-':
                             while coords[1] > qcoords[-1][0]:
                                 coords[1] += 3
                                 if coords[1] + 3 >= coords[0]:

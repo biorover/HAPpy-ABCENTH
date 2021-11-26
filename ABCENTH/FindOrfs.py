@@ -2,7 +2,7 @@
 
 import argparse
 import genome_fork as genome
-import re, os, subprocess, tempfile, shlex
+import re, os, subprocess, tempfile, shlex, sys
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Finds orfs between splice sites (or start and stop sites) which match a given \

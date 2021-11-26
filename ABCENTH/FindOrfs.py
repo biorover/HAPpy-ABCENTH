@@ -101,8 +101,12 @@ def genewisesearch(sequence,startphase,stopphase,strand,
     modelfile = tempfile.NamedTemporaryFile('w')
     subprocess.run(shlex.split('hmmconvert -2 ' + hmm_profile),stdout=modelfile)
     modelfile.flush()
-    gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmmer ' \
-        + modelfile.name + ' ' + seqfile.name),stderr = open(os.devnull, 'w')).decode('utf8').split('\n')
+    try:
+        gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmmer ' \
+            + modelfile.name + ' ' + seqfile.name),stderr = open(os.devnull, 'w')).decode('utf8').split('\n')
+    except subprocess.CalledProcessError:
+        sys.stderr.write('warning: genewise failed on one gene, continuing\n')
+        return []
     tcoords = [None,None]
     qcoords = []
     keeplines = 0

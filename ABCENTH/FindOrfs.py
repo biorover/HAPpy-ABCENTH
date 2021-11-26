@@ -104,7 +104,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
     modelfile = tempfile.NamedTemporaryFile('w')
     subprocess.run(shlex.split('hmmconvert -2 ' + hmm_profile),stdout=modelfile)
     modelfile.flush()
-    gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmm ' \
+    gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmmer ' \
         + modelfile.name + ' ' + seqfile.name)).decode('utf8').split('\n')
     tcoords = [None,None]
     qcoords = []

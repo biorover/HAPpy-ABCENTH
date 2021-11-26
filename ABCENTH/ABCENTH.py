@@ -9,9 +9,13 @@
 import argparse
 import genome_fork as genome
 from FindOrfs import orf_finder
-import sys
+import sys, os
 
-
+def isyes(x):
+    if x in [True,'True','true','TRUE','TrUe','T','t','oui','si','y','Y','Yes','YES','yes','oh my YESSSSS!']:
+        return True
+    else:
+        return False
 
 parser = argparse.ArgumentParser(description='ABCENTH, Annotation Based on Conserved Exons Noticed Through Homology. Takes a table of \
                                  exon alignments with phase and length information and tries to build good annotations. \
@@ -31,18 +35,18 @@ parser.add_argument('--maxintron', type = int, default = 100000, help = 'Maximum
 
 parser.add_argument('--query_exon_info_table', help = 'Information about each query exon (for finding missing exons)')
 
+parser.add_argument('--full_pseudoexon_search', default = True, type = isyes, 
+                    help = 'Experimental (in progress): For truncated exons, performs genewise search \
+                    against exon hmm to fill out exon in case of frameshift or stop codon')
+
 parser.add_argument('--log', default = None, help = "file to write a log for debugging (optional)")
 
 args = parser.parse_args()
 
-class dummy_file():
-    def write(self, text):
-        pass
-
 if args.log:
     log_file = open(args.log,'w')
 else:
-    log_file = dummy_file()
+    log_file = open(os.devnull, 'w')
 
 if args.sep == "comma":
     delimiter = ','
@@ -169,7 +173,7 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
             end = pseudo_end
     start = max([1,start])
     end = min([end,max_coord])
-    return [start,end,pseudo]
+    return [[start,end,pseudo]]
 
 #exon_finder(4179626,4179670,"-",1,40,40,0,0,cra.genome_sequence,'Chromosome3') #debug>>> exon_finder(4181323,4181442,"-",1,40,40,2,2,cra.genome_sequence,'Chromosome3') #debug
 
@@ -319,9 +323,9 @@ for locus in locus_dict.keys():
             working_name = [hit[0] +"coords" + locus + "-" + str(tstart),float(hit[11])]
             log_file.write('found start/end of gene, beggining new annotation near ' + str(tstart) + ' with working name "' + working_name[0] + '\n')
             if strand == "+":
-                working_annotation = [exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_start = True)]
+                working_annotation = exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_start = True)
             elif strand == '-':
-                working_annotation = [exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_stop = True)]
+                working_annotation = exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,is_stop = True)
        
         elif (from_start == 1 and (working_annotation == [] or tstart - last_tstart > args.maxintron or
                                   (nextstrand != last_strand == strand or last_from_start > nextfrom_start > from_start or nextnum_exons == num_exons != last_num_exons))
@@ -343,10 +347,10 @@ for locus in locus_dict.keys():
                 recovered = False
             #Now adding found exon
             if strand == "+" and working_annotation == []:
-                working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,0,endphase,target_genome.genome_sequence,locus,is_start = True,nevermind_atg = True))
+                working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,0,endphase,target_genome.genome_sequence,locus,is_start = True,nevermind_atg = True))
                 if_fail = "N"
             else:
-                working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
+                working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
                 if_fail = "C"
             if len(working_annotation) < 2:
                 if working_annotation[0][2]:
@@ -368,7 +372,7 @@ for locus in locus_dict.keys():
                 #One or more exons were skipped! Attempting to recover
                 recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],range(min([last_exon_num + 1,exon_num + 1]),max([last_exon_num ,exon_num])),False,False,[max((last_tend,last_tstart)),min((tstart,tend))])
             if from_end != 0:
-                working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
+                working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus))
                 if from_start > last_from_start + 1 and recovered != True:
                     #need to adjust exon start to account for mis-matched phase
                     if working_annotation[-1][2]:
@@ -388,9 +392,9 @@ for locus in locus_dict.keys():
                                            str(startphase) + ', exon-adjust = ' + str(exon_start_adjust) + '\n')
             else:
                 if strand == "+":
-                    working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus, is_stop = True))
+                    working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus, is_stop = True))
                 elif strand == '-':
-                    working_annotation.append(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus, is_start = True))
+                    working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,qlen,startphase,endphase,target_genome.genome_sequence,locus, is_start = True))
                 if from_start > last_from_start + 1 and not recovered == True:
                     #need to adjust exon start to account for mis-matched phase
                     if working_annotation[-1][2]:

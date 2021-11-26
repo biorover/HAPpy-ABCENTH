@@ -174,7 +174,7 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
             end = pseudo_end
     start = max([1,start])
     end = min([end,max_coord])
-    if pseudo and args.full_pseudoexon_search and cluster and exon_number:
+    if pseudo and args.full_pseudoexon_search: # and cluster and exon_number:
         gwexons = genewisesearch(seqdict[seqname],qstartphase,qendphase,strand,
                     exon_info_dict[str(cluster) + ':' + str(exon_number)][6], 
                     search_coords = [ideal_start - 3 - max_offset,ideal_end + 3 + max_offset],

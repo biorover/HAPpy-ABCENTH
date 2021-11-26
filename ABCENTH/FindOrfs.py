@@ -137,6 +137,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
                                 if coords[0] + 3 >= coords[1]:
                                     break
                     qcoords.append(sorted(coords))
+                    sys.stderr.write(str(sorted(coords))+ "\n")
                     keeplines -= 1
             elif tcoords[1] and keeplines == 0:
                 break

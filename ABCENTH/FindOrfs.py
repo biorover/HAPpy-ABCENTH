@@ -94,6 +94,66 @@ def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase, evalue= "0.05"
     if not found_hit:
         return []
 
+def genewisesearch(sequence,startphase,stopphase,strand,
+               hmm_profile, search_coords = [0,None]):
+    """searches an hmm profile against a sequence (optionally within a designated sub region) to \
+    find boundaries of an exon interupted by stop codons or frame shifts"""
+    seqfile = temp.NamedTemporaryFile('w')
+    seqfile.write(">temp\n" + sequence[search_coords[0]:search_coords[1]] + "\n")
+    seqfile.flush()
+    modelfile = temp.NamedTemporaryFile('w')
+    subprocess.run(shlex.split('hmmconvert -2 ' + hmm_profile),stdout=modelfile)
+    modelfile.flush()
+    gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmm ' \
+        + modelfile.name + ' ' + seqfile.name)).decode('utf8').split('\n')
+    tcoords = [None,None]
+    qcoords = []
+    keeplines = 0
+    for line in gwout:
+        if line[:4] == 'Bits' and not tcoords[0]:
+            tcoords[0] = 'primed'
+        elif tcoords[0] and not tcoords[1]:
+            fields = line.split()
+            start,stop = int(fields[5]) < int(fields[6])
+            if (strand == '+' and start < stop ) or (strand == "-" and start > stop):
+                tcoords = [start,stop]
+                keeplines = 1 + int(fields[7])
+        elif tcoords[1] and "\tcds\t" in line and keeplines > 0:
+            fields = line.split('\t')
+            if fields[7] == strand:
+                coords = [int(fields[3]) + search_coords[0],int(fields[4]) + search_coords[0]]
+                if qcoords != []:
+                    if fields[6] == '-':
+                        while coords[1] > qcoords[-1][0]:
+                            coords[1] += 3
+                            if coords[1] + 3 >= coords[0]:
+                                break
+                    elif fields[6] == '+':
+                        while coords[0] < qcoords[-1][1]:
+                            coords[0] += 3
+                            if coords[0] + 3 >= coords[1]:
+                                break
+                qcoords.append(sorted(coords))
+                keeplines -= 1
+        elif tcoords[1] and keeplines == 0:
+            break
+    qcoords.sort()
+    if qcoords != []:
+        if strand == '+':
+            qcoords[0][0] = qcoords[0][0] - (3 - startphase) % 3
+            qcoords[-1][-1] = qcoords[-1][-1] + stopphase
+        elif strand == '-':
+            qcoords[0][0] = qcoords[0][0] - stopphase
+            qcoords[-1][-1] = qcoords[-1][-1] + (3 - startphase) % 3
+    return [k.append('P') for k in qcoords]
+
+    
+
+
+
+
+
+
 
 def main():
     sequence = ""

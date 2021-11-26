@@ -143,7 +143,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
                 break
     qcoords.sort()
     if qcoords != []:
-        sys.stderr.write(str(qcoords) + '\n' + str((3 - startphase) % 3) + '\n' + str(stopphase) + "\n" + strand + "\n")
+        #sys.stderr.write(str(qcoords) + '\n' + str((3 - startphase) % 3) + '\n' + str(stopphase) + "\n" + strand + "\n")
         if strand == '+':
             qcoords[0][0] = qcoords[0][0] - (3 - startphase) % 3
             qcoords[-1][-1] = qcoords[-1][-1] + stopphase
@@ -153,8 +153,8 @@ def genewisesearch(sequence,startphase,stopphase,strand,
     if len(qcoords) > 1:
         sys.stderr.write('anotherone bites the dust')
     if len(qcoords) > 0:
-        sys.stderr.write(str([k.append('P') for k in qcoords]) + '\n')
-    return [k.append('P') for k in qcoords]
+        sys.stderr.write(str([k + ['P'] for k in qcoords]) + '\n')
+    return [k + ['P'] for k in qcoords]
 
     
 

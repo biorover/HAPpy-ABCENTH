@@ -8,7 +8,7 @@
 
 import argparse
 import genome_fork as genome
-from FindOrfs import orf_finder
+from FindOrfs import orf_finder,genewisesearch
 import sys, os
 
 def isyes(x):

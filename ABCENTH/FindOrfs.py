@@ -123,7 +123,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,
                     keeplines = 1 + int(fields[7])
             elif line[0] == '/':
                 tcoords[0] == False
-            elif tcoords[1] and "\tcds\t" in line and keeplines > 0:
+            elif tcoords[1] and tcoords[0] and "\tcds\t" in line and keeplines > 0:
                 fields = line.split('\t')
                 if fields[6] == strand:
                     coords = [int(fields[3]) + search_coords[0],int(fields[4]) + search_coords[0]]

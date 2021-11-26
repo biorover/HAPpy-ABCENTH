@@ -112,8 +112,9 @@ def genewisesearch(sequence,startphase,stopphase,strand,
     qcoords = []
     keeplines = 0
     for line in gwout:
-        if line[0] == "/":
-            tcoords[0] = None
+        if line != "":
+            if line[0] == "/":
+                tcoords[0] = None
         if len(line) > 4:
             if line[:4] == 'Bits' and not tcoords[0]:
                 tcoords[0] = 'primed'

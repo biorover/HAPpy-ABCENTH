@@ -64,7 +64,7 @@ if "query_exon_info_table" in args:
 #The heart of gold of this program- the function to define an exon based on the coords and target phase
 def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdict,seqname,
                 max_offset = 30, is_start = False, is_stop = False, nevermind_atg = False,
-                cluster,exon_number):
+                cluster = None,exon_number = None):
     """"finds exons with ORFs based on the requested parameters. Note that it is expected that tstart < tend, \
     even for minus strand features, so these might need to be reversed if coming from say tblastn. \
     Also coords are expected as 1-based (as output from blast), and are \
@@ -174,7 +174,7 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
             end = pseudo_end
     start = max([1,start])
     end = min([end,max_coord])
-    if pseudo and args.full_pseudoexon_search:
+    if pseudo and args.full_pseudoexon_search and cluster and exon_number:
         return genewisesearch(seqdict[seqname],qstartphase,qendphase,strand,
                     exon_info_dict[str(cluster) + ':' + str(exon_number)], 
                     search_coords = [ideal_start - 3 - max_offset,ideal_end + 3 + max_offset])

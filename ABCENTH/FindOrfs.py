@@ -117,7 +117,11 @@ def genewisesearch(sequence,startphase,stopphase,strand,
                 tcoords[0] = 'primed'
             elif tcoords[0] and not tcoords[1]:
                 fields = line.split()
-                start,stop = int(fields[5]), int(fields[6])
+                try: 
+                    start,stop = int(fields[5]), int(fields[6])
+                except:
+                    print("\n".join(gwout))
+                    exit()
                 if (strand == '+' and start < stop ) or (strand == "-" and start > stop):
                     tcoords = [start,stop]
                     keeplines = 1 + int(fields[7])

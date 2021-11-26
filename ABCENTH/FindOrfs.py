@@ -147,7 +147,9 @@ def genewisesearch(sequence,startphase,stopphase,strand,
             elif strand == '-':
                 qcoords[0][0] = qcoords[0][0] - stopphase
                 qcoords[-1][-1] = qcoords[-1][-1] + (3 - startphase) % 3
-        return [k.append('P') for k in qcoords]
+    if len(qcoords) > 1:
+        sys.stderr.write('anotherone bites the dust')
+    return [k.append('P') for k in qcoords]
 
     
 

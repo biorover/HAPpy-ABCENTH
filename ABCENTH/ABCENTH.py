@@ -39,6 +39,9 @@ parser.add_argument('--full_pseudoexon_search', default = True, type = isyes,
                     help = 'Experimental (in progress): For truncated exons, performs genewise search \
                     against exon hmm to fill out exon in case of frameshift or stop codon')
 
+parser.add_argument('--orf_finder_E', type = float, default = 0.05, 
+                    help = 'minimum hmmer E value to keep exons found through OR/phase matching')
+
 parser.add_argument('--log', default = None, help = "file to write a log for debugging (optional)")
 
 args = parser.parse_args()
@@ -232,7 +235,8 @@ def recover_missing_exon(strand,cluster,exon_numbers,includes_start,includes_sto
             missing_exon_info = exon_info_dict[str(cluster) + ':' + str(exon_number)]
             missing_coords = orf_finder(target_genome.genome_sequence[locus],int(missing_exon_info[3]),
                                                  int(missing_exon_info[4]),strand, int(missing_exon_info[5]),5, search_coords,
-                                                 is_stop = is_stop,is_start = is_start,hmm_profile = missing_exon_info[6])
+                                                 is_stop = is_stop,is_start = is_start,hmm_profile = missing_exon_info[6],
+                                                 evalue = args.orf_finder_E)
         log_file.write(locus + '\t' + str(tstart) + '\t' + str(cluster) + '\t' + str(exon_number) + '\t' + str(search_coords) + '\t' + str(missing_coords) + '\n')
         if missing_coords != []:
             if found_coords_list != []:

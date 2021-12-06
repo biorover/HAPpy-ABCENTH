@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-import genome_fork as genome
+from HAPpy import genome_fork as genome
 import re, os, subprocess, tempfile, shlex, sys
 
 if __name__ == "__main__":
@@ -23,7 +23,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 def orf_finder(sequence,startphase,stopphase,strand,expected_aa_len,length_variance,
-               search_coords = None, is_start = False, is_stop = False, hmm_profile = None,evalue='0.05'):
+               search_coords = None, is_start = False, is_stop = False, 
+               hmm_profile = None, evalue='0.05', genewise_on_fail = True):
     """Finds all putative exons matching a given expected length and intron phase profile and \
     containing an open reading frame"""
     search_seq = sequence
@@ -68,6 +69,13 @@ def orf_finder(sequence,startphase,stopphase,strand,expected_aa_len,length_varia
                     exon_coords[-1] = [exon_coords[-1][0] + search_coords[0],exon_coords[-1][1] + search_coords[0]]     
     if hmm_profile and len(exon_coords) > 0:
         exon_coords = hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase,evalue=evalue)
+    if exon_coords == [] and genewise_on_fail and search_coords[1] - search_coords[0] < 10000:
+        if not search_coords:
+            search_coords = [0,None]
+        exon_coords = genewisesearch(sequence,startphase,stopphase,strand,
+                        hmm_profile, search_coords = search_coords,seqname = None)
+    elif exon_coords != []:
+        exon_coords = [ exon_coords + [False] ]
     return exon_coords
 
 def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase, evalue= "0.05"):
@@ -80,7 +88,7 @@ def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase, evalue= "0.05"
         orf_file.write(">coords" + str(coords_index) + '\n' +
                        pep_seq + '\n' )
     orf_file.flush()
-    hmmout = subprocess.check_output(shlex.split('hmmsearch --max -E ' + evalue + ' ' + hmm_profile + ' ' + 
+    hmmout = subprocess.check_output(shlex.split('hmmsearch --max -E ' + str(evalue) + ' ' + hmm_profile + ' ' + 
         orf_file.name)).decode('utf8').split('\n')
     found_hit = False
     for line in hmmout:
@@ -91,19 +99,19 @@ def hmmsearch(hmm_profile,exon_coords,sequence,strand,startphase, evalue= "0.05"
     if not found_hit:
         return []
 
-def genewisesearch(sequence,startphase,stopphase,strand,
-               hmm_profile, search_coords = [0,None],seqname = None):
+def genewisesearch(sequence,startphase,stopphase,strand,hmm_profile,
+                   search_coords = [0,None],seqname = None, log_file = open(os.devnull, 'w')):
     """searches an hmm profile against a sequence (optionally within a designated sub region) to \
     find boundaries of an exon interupted by stop codons or frame shifts"""
     seqfile = tempfile.NamedTemporaryFile('w')
-    seqfile.write(">temp\n" + sequence[search_coords[0]:search_coords[1]] + "\n")
+    seqfile.write(">temp_" + str(search_coords[0]) + "-" + str(search_coords[1]) + "\n" + sequence[search_coords[0]:search_coords[1]] + "\n")
     seqfile.flush()
     modelfile = tempfile.NamedTemporaryFile('w')
     subprocess.run(shlex.split('hmmconvert -2 ' + hmm_profile),stdout=modelfile)
     modelfile.flush()
     try:
         gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmmer ' \
-            + modelfile.name + ' ' + seqfile.name),stderr = open(os.devnull, 'w')).decode('utf8').split('\n')
+            + modelfile.name + ' ' + seqfile.name),stderr = log_file).decode('utf8').split('\n')
     except subprocess.CalledProcessError:
         sys.stderr.write('warning: genewise failed on one gene, continuing\n')
         return []

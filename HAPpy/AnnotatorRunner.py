@@ -5,8 +5,8 @@
 import subprocess
 import os
 import tempfile
-import genome_fork as genome
-import toolbox_for_HAP
+from HAPpy import genome_fork as genome
+from HAPpy import toolbox_for_HAP
 import threading
 import time
 

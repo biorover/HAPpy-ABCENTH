@@ -4,10 +4,10 @@ import sys
 import os
 import shutil
 import argparse
-import genome_fork as genome
-import toolbox_for_HAP
-import CandidateLociBuilder
-import AnnotatorRunner
+from HAPpy import genome_fork as genome
+from HAPpy import toolbox_for_HAP
+from HAPpy import CandidateLociBuilder
+from HAPpy import AnnotatorRunner
 import subprocess
 import ete3
 import time
@@ -935,14 +935,13 @@ def main(args):
         candidate_locus_file.write("\t".join(line) + '\n')
     candidate_locus_file.close()
     if "ABCENTH" in args.annotator:
-        happydir = "/".join(__file__.split("/")[:-1])
-        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH/ParseHAPpyTable.py --table ' + args.output_dir + '/sorted_hit_table.tsv'),
+        subprocess.call(shlex.split('python -m ABCENTH.ParseHAPpyTable --table ' + args.output_dir + '/sorted_hit_table.tsv'),
             stdout = open(args.output_dir + '/abcenth_hit_table.tsv','w'))
-        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH//HitTabFilter.py --table ' + args.output_dir + '/abcenth_hit_table.tsv'),
+        subprocess.call(shlex.split('python -m ABCENTH.HitTabFilter --table ' + args.output_dir + '/abcenth_hit_table.tsv'),
             stdout = open(args.output_dir + '/abcenth_filtered_hit_table.tsv','w'))
-        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH/ParseHAPpyTable.py --hmm_dir '  + hmm_dir),
+        subprocess.call(shlex.split('python -m ABCENTH.ParseHAPpyTable --hmm_dir '  + hmm_dir),
             stdout = open(args.output_dir + '/abcenth_cluster_info.tsv','w'))
-        subprocess.call(shlex.split('python ' + happydir + '/ABCENTH/ABCENTH.py --genome ' + args.target_genome + ' --table ' +
+        subprocess.call(shlex.split('python -m ABCENTH --genome ' + args.target_genome + ' --table ' +
             args.output_dir + '/abcenth_filtered_hit_table.tsv --query_exon_info_table ' + args.output_dir + 
             '/abcenth_cluster_info.tsv'), stdout = open(args.output_dir + '/ABCENTH.gtf','w'))
         

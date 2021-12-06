@@ -8,7 +8,7 @@
 #soon- would it be too much to hope for that it will contain this function?
 
 import subprocess
-import genome_fork as genome
+from HAPpy import genome_fork as genome
 import argparse
 import os
 import tempfile

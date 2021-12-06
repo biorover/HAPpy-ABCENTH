@@ -4,8 +4,8 @@ import sys
 import os
 import shutil
 import argparse
-import genome_fork as genome
-import toolbox_for_HAP
+from HAPpy import genome_fork as genome
+from HAPpy import toolbox_for_HAP
 import subprocess
 import ete3
 import time

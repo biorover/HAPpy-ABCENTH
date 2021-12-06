@@ -7,8 +7,8 @@
 
 
 import argparse
-import genome_fork as genome
-from FindOrfs import orf_finder,genewisesearch
+from HAPpy import genome_fork as genome
+from ABCENTH.FindOrfs import orf_finder,genewisesearch
 import sys, os
 
 def isyes(x):
@@ -67,7 +67,7 @@ if "query_exon_info_table" in args:
 #The heart of gold of this program- the function to define an exon based on the coords and target phase
 def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdict,seqname,
                 max_offset = 30, is_start = False, is_stop = False, nevermind_atg = False,
-                cluster = None,exon_number = None):
+                cluster = None,exon_number = None,log_file = open(os.devnull, 'w')):
     """"finds exons with ORFs based on the requested parameters. Note that it is expected that tstart < tend, \
     even for minus strand features, so these might need to be reversed if coming from say tblastn. \
     Also coords are expected as 1-based (as output from blast), and are \
@@ -181,7 +181,7 @@ def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdic
         gwexons = genewisesearch(seqdict[seqname],qstartphase,qendphase,strand,
                     exon_info_dict[str(cluster) + ':' + str(exon_number)][6], 
                     search_coords = [ideal_start - 3 - max_offset,ideal_end + 3 + max_offset],
-                    seqname = seqname)
+                    seqname = seqname,log_file=log_file)
         if gwexons != []:
             return gwexons
     return [[start,end,pseudo]]
@@ -240,15 +240,15 @@ def recover_missing_exon(strand,cluster,exon_numbers,includes_start,includes_sto
         log_file.write(locus + '\t' + str(tstart) + '\t' + str(cluster) + '\t' + str(exon_number) + '\t' + str(search_coords) + '\t' + str(missing_coords) + '\n')
         if missing_coords != []:
             if found_coords_list != []:
-                if ((found_coords_list[-1][1] > missing_coords[0] and last_strand == "+") or
-                (found_coords_list[-1][0] < missing_coords[1] and last_strand == "-")):
+                if ((found_coords_list[-1][1] > missing_coords[0][0] and last_strand == "+") or
+                (found_coords_list[-1][0] < missing_coords[-1][1] and last_strand == "-")):
                     adjust_next_phase = ( int(missing_exon_info[3]) - int(missing_exon_info[4]) ) % 3
                     continue
             if last_strand == "+":
-                missing_coords[0] += adjust_next_phase
+                missing_coords[0][0] += adjust_next_phase
             elif last_strand == "-":
-                missing_coords[1] -=  adjust_next_phase
-            found_coords_list.append(missing_coords + [False])
+                missing_coords[-1][1] -=  adjust_next_phase
+            found_coords_list.extend(missing_coords)
             adjust_next_phase = 0
         else:
             adjust_next_phase = (adjust_next_phase + int(missing_exon_info[3]) - int(missing_exon_info[4]) ) % 3
@@ -337,11 +337,11 @@ for locus in locus_dict.keys():
             if strand == "+":
                 working_annotation = exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                     qlen,startphase,endphase,target_genome.genome_sequence,locus,is_start = True,
-                    cluster = working_name[0].split('coord')[0],exon_number = exon_num)
+                    cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file)
             elif strand == '-':
                 working_annotation = exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                     qlen,startphase,endphase,target_genome.genome_sequence,locus,is_stop = True,
-                    cluster = working_name[0].split('coord')[0],exon_number = exon_num)
+                    cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file)
        
         elif (from_start == 1 and (working_annotation == [] or tstart - last_tstart > args.maxintron or
                                   (nextstrand != last_strand == strand or last_from_start > nextfrom_start > from_start or nextnum_exons == num_exons != last_num_exons))
@@ -365,12 +365,12 @@ for locus in locus_dict.keys():
             if strand == "+" and working_annotation == []:
                 working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,
                     qend,qlen,0,endphase,target_genome.genome_sequence,locus,is_start = True,nevermind_atg = True,
-                    cluster = working_name[0].split('coord')[0],exon_number = exon_num))
+                    cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file))
                 if_fail = "N"
             else:
                 working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,
                     qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,
-                    cluster = working_name[0].split('coord')[0],exon_number = exon_num))
+                    cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file))
                 if_fail = "C"
             if len(working_annotation) < 2:
                 if working_annotation[0][2]:
@@ -394,7 +394,7 @@ for locus in locus_dict.keys():
             if from_end != 0:
                 working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                     qlen,startphase,endphase,target_genome.genome_sequence,locus,
-                    cluster = working_name[0].split('coord')[0],exon_number = exon_num))
+                    cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file))
                 if from_start > last_from_start + 1 and recovered != True:
                     #need to adjust exon start to account for mis-matched phase
                     if working_annotation[-1][2]:
@@ -416,11 +416,11 @@ for locus in locus_dict.keys():
                 if strand == "+":
                     working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                         qlen,startphase,endphase,target_genome.genome_sequence,locus, is_stop = True,
-                        cluster = working_name[0].split('coord')[0],exon_number = exon_num))
+                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file))
                 elif strand == '-':
                     working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                         qlen,startphase,endphase,target_genome.genome_sequence,locus, is_start = True,
-                        cluster = working_name[0].split('coord')[0],exon_number = exon_num))
+                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file))
                 if from_start > last_from_start + 1 and not recovered == True:
                     #need to adjust exon start to account for mis-matched phase
                     if working_annotation[-1][2]:
@@ -448,3 +448,4 @@ for locus in locus_dict.keys():
     if len(working_annotation) != 0:
         #last annotation was almost there! Bulding an incomplete gene model for it (this can be scrapped later, after all)
         last_annotation_almost_complete()
+

@@ -162,7 +162,7 @@ def exontuples2gff(exontuple_list,strand,feature_name,locus_name):
 
 
 #Defines a few operations that will need to be executed in different parts of the following code. NOT independent functions!
-def recover_missing_exon(strand,cluster,exon_numbers,includes_start,includes_stop, search_coords, log_file,args,exon_info_dict,target_genome,locus,tstart):
+def recover_missing_exon(strand,cluster,exon_numbers,includes_start,includes_stop, search_coords, log_file,args,exon_info_dict,target_genome,locus,tstart,last_strand):
     log_file.write('Exons skipped, attempting to recover.\n')
     # V- I think I fixed it
     #needs to be fixed to adjust phases in case not all exons are found
@@ -220,12 +220,12 @@ def last_annotation_almost_complete(last_strand,working_name,last_exon_num,last_
         is_start, is_stop, if_missing = True,False,"N"
         recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],range(last_exon_num),
                                         is_start,is_stop,[max((last_tend,last_tstart)),min(max((last_tend,last_tstart)) + 2000,
-                                        min((tstart,tend)))],log_file,args,exon_info_dict,target_genome,locus,tstart)
+                                        min((tstart,tend)))],log_file,args,exon_info_dict,target_genome,locus,tstart,last_strand)
     elif last_strand == '+':
         is_start,is_stop, if_missing = False,True,"C"
         recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],range(last_exon_num + 1, last_num_exons),
                                         is_start,is_stop,[max((last_tend,last_tstart)),min(max((last_tend,last_tstart)) + 2000,
-                                        min((tstart,tend)))],log_file,args,exon_info_dict,target_genome,locus,tstart)
+                                        min((tstart,tend)))],log_file,args,exon_info_dict,target_genome,locus,tstart,last_strand)
     if not recovered:
         if last_strand == '-' and last_startphase != 0:
             working_annotation[-1][1] = working_annotation[-1][1] - ((3 - last_startphase) % 3)
@@ -374,11 +374,11 @@ def main():
                     if strand == '-':
                         recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],range(exon_num + 1,num_exons + 1),
                                                         False,True, [max((min((tend,tstart)) - 2000,max((last_tend,last_tstart)))),
-                                                        min((tend,tstart))],log_file, args,exon_info_dict,target_genome,locus,tstart)
+                                                        min((tend,tstart))],log_file, args,exon_info_dict,target_genome,locus,tstart,last_strand)
                     elif strand == '+':
                         recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],range(exon_num),
                                                         True,False, [max((min((tend,tstart)) - 2000,max((last_tend,last_tstart)))),
-                                                        min((tend,tstart))],log_file,args,exon_info_dict,target_genome,locus,tstart)
+                                                        min((tend,tstart))],log_file,args,exon_info_dict,target_genome,locus,tstart,last_strand)
                 else:
                     recovered = False
                 #Now adding found exon
@@ -416,7 +416,7 @@ def main():
                     #One or more exons were skipped! Attempting to recover
                     recovered = recover_missing_exon(strand,working_name[0].split('coord')[0],range(min([last_exon_num + 1,exon_num + 1]),
                                                     max([last_exon_num ,exon_num])),False,False,[max((last_tend,last_tstart)),
-                                                    min((tstart,tend))],log_file,args,exon_info_dict,target_genome,locus,tstart)
+                                                    min((tstart,tend))],log_file,args,exon_info_dict,target_genome,locus,tstart,last_strand)
                 if from_end != 0:
                     working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                         qlen,startphase,endphase,target_genome.genome_sequence,locus,

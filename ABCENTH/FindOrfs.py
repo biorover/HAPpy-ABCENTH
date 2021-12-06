@@ -113,7 +113,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,hmm_profile,
         gwout = subprocess.check_output(shlex.split('genewisedb -sum -gff -hmmer ' \
             + modelfile.name + ' ' + seqfile.name),stderr = log_file).decode('utf8').split('\n')
     except subprocess.CalledProcessError:
-        sys.stderr.write('warning: genewise failed on one gene, continuing\n')
+        log_file.write('warning: genewise failed on one gene, continuing\n')
         return []
     #sys.stderr.write("\n".join(gwout) + "\n")
     tcoords = [None,None]
@@ -162,8 +162,8 @@ def genewisesearch(sequence,startphase,stopphase,strand,hmm_profile,
             qcoords[0][0] = qcoords[0][0] - stopphase
             qcoords[-1][-1] = qcoords[-1][-1] + (3 - startphase) % 3
     if len(qcoords) > 1:
-        sys.stderr.write('anotherone bites the dust\t')
-    sys.stderr.write(str(seqname) + '\t' + str([k + ['P'] for k in qcoords]) + '\n')
+        log_file.write('anotherone bites the dust\t')
+    log_file.write(str(seqname) + '\t' + str([k + ['P'] for k in qcoords]) + '\n')
     return [k + ['P'] for k in qcoords]
 
     

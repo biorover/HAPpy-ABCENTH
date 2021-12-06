@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='HAPpy-ABCENTH',
-    version='0.2.1',
+    version='1.0',
     packages=[
         'HAPpy',
         'ABCENTH'

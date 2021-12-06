@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='HAPpy-ABCENTH',
@@ -19,4 +19,5 @@ setup(
             'HAPpy = HAPpy.__main__:main'
         ]
     },
+    include_package_data = True
 )

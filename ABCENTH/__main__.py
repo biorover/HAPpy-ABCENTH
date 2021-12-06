@@ -404,8 +404,8 @@ def main():
             #     #Intron was too long! Clearing annotation (or writing if almost done)
             #     if last_from_end == 1 and working_annotation != []:
             #         last_annotation_almost_complete(last_strand,working_name,last_exon_num,last_tend,last_tstart,tstart,
-                                    tend,log_file,args,exon_info_dict,target_genome,locus,working_annotation,
-                                    last_phase,last_startphase)
+            #                        tend,log_file,args,exon_info_dict,target_genome,locus,working_annotation,
+            #                        last_phase,last_startphase)
             #     working_annotation = []
             #     working_name = ["oops",0]
             elif num_exons == last_num_exons and working_annotation != [] and strand == last_strand and from_start > last_from_start:

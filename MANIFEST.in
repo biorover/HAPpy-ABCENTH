@@ -1,1 +1,1 @@
-recursive-include cfgFiles
+graft cfgFiles

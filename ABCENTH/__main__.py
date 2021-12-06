@@ -215,7 +215,7 @@ def recover_missing_exon(strand,cluster,exon_numbers,includes_start,includes_sto
 
 def last_annotation_almost_complete(last_strand,working_name,last_exon_num,last_tend,last_tstart,tstart,
                                     tend,log_file,args,exon_info_dict,target_genome,locus,working_annotation,
-                                    last_startphase):
+                                    last_startphase,last_num_exons):
     if last_strand == '-':
         is_start, is_stop, if_missing = True,False,"N"
         recovered = recover_missing_exon(last_strand,working_name[0].split('coord')[0],range(last_exon_num),
@@ -343,7 +343,7 @@ def main():
                     #last annotation had something! Bulding an incomplete gene model for it (this can be scrapped later, after all)
                     last_annotation_almost_complete(last_strand,working_name,last_exon_num,last_tend,last_tstart,tstart,
                                     tend,log_file,args,exon_info_dict,target_genome,locus,working_annotation,
-                                    last_startphase)
+                                    last_startphase,last_num_exons)
                 working_name = [hit[0] +"coords" + locus + "-" + str(tstart),float(hit[11])]
                 log_file.write('found start/end of gene, beggining new annotation near ' + str(tstart) + ' with working name "' + working_name[0] + '\n')
                 if strand == "+":
@@ -365,7 +365,7 @@ def main():
                     #last annotation had something! Bulding an incomplete gene model for it (this can be scrapped later, after all)
                     last_annotation_almost_complete(last_strand,working_name,last_exon_num,last_tend,last_tstart,tstart,
                                     tend,log_file,args,exon_info_dict,target_genome,locus,working_annotation,
-                                    last_startphase)
+                                    last_startphase,last_num_exons)
                 working_name = [hit[0] +"coords" + locus + "-" + str(tstart),float(hit[11])]
                 working_annotation = []
                 log_file.write('found almost start/end of gene, beggining new annotation near ' + str(tstart) + ' with working name "' + working_name[0] + '\n')
@@ -405,7 +405,7 @@ def main():
             #     if last_from_end == 1 and working_annotation != []:
             #         last_annotation_almost_complete(last_strand,working_name,last_exon_num,last_tend,last_tstart,tstart,
             #                        tend,log_file,args,exon_info_dict,target_genome,locus,working_annotation,
-            #                        last_startphase)
+            #                        last_startphase,last_num_exons)
             #     working_annotation = []
             #     working_name = ["oops",0]
             elif num_exons == last_num_exons and working_annotation != [] and strand == last_strand and from_start > last_from_start:
@@ -478,7 +478,7 @@ def main():
             #last annotation was almost there! Bulding an incomplete gene model for it (this can be scrapped later, after all)
             last_annotation_almost_complete(last_strand,working_name,last_exon_num,last_tend,last_tstart,tstart,
                                     tend,log_file,args,exon_info_dict,target_genome,locus,working_annotation,
-                                    last_startphase)
+                                    last_startphase,last_num_exons)
 
 if __name__ == "__main__":
     main()

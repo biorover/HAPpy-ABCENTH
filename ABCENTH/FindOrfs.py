@@ -4,24 +4,6 @@ import argparse
 from HAPpy import genome_fork as genome
 import re, os, subprocess, tempfile, shlex, sys
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Finds orfs between splice sites (or start and stop sites) which match a given \
-                                     starting and ending intron phase')
-    
-    parser.add_argument('--sequence', help = 'sequence, raw or in fasta format')
-    parser.add_argument('--startphase', type = int, help = 'phase of preceding intron')
-    parser.add_argument('--stopphase', type = int, help = 'phase of following intron')
-    parser.add_argument('--expected_aa_length', type = int, help = 'expected length (in amino acids) of exon product')
-    parser.add_argument('--length_variance', type = int, help = 'permitted variance in exon length (in amino acids)')
-    parser.add_argument('--strand', help = 'strand of expected feature')
-    parser.add_argument('--search_coords', default = None, help = 'subset of sequence within which to search')
-    parser.add_argument('--is_start', default = False, type = bool, help = 'Is this exon the first exon- i.e. should it start with atg instead of a splice site')
-    parser.add_argument('--is_stop', default = False, type = bool, help = 'Is this exon the last exon- i.e. should it start with a stop codon instead of a splice site')
-    parser.add_argument('--hmm_profile', default = None, help = "If provided, FindOrfs will search orfs against the provided\
-                        hmm profile and return the best hit")
-    
-    args = parser.parse_args()
-
 def orf_finder(sequence,startphase,stopphase,strand,expected_aa_len,length_variance,
                search_coords = None, is_start = False, is_stop = False, 
                hmm_profile = None, evalue='0.05', genewise_on_fail = True):
@@ -103,6 +85,7 @@ def genewisesearch(sequence,startphase,stopphase,strand,hmm_profile,
                    search_coords = [0,None],seqname = None, log_file = open(os.devnull, 'w')):
     """searches an hmm profile against a sequence (optionally within a designated sub region) to \
     find boundaries of an exon interupted by stop codons or frame shifts"""
+    os.environ['WISECONFIGDIR'] = os.path.dirname(genome.__file__) + '/cfgFiles'
     seqfile = tempfile.NamedTemporaryFile('w')
     seqfile.write(">temp_" + str(search_coords[0]) + "-" + str(search_coords[1]) + "\n" + sequence[search_coords[0]:search_coords[1]] + "\n")
     seqfile.flush()
@@ -166,15 +149,24 @@ def genewisesearch(sequence,startphase,stopphase,strand,hmm_profile,
     log_file.write(str(seqname) + '\t' + str([k + ['P'] for k in qcoords]) + '\n')
     return [k + ['P'] for k in qcoords]
 
-    
-
-
-
-
-
-
-
 def main():
+    parser = argparse.ArgumentParser(description='Finds orfs between splice sites (or start and stop sites) which match a given \
+                                     starting and ending intron phase')
+    
+    parser.add_argument('--sequence', help = 'sequence, raw or in fasta format')
+    parser.add_argument('--startphase', type = int, help = 'phase of preceding intron')
+    parser.add_argument('--stopphase', type = int, help = 'phase of following intron')
+    parser.add_argument('--expected_aa_length', type = int, help = 'expected length (in amino acids) of exon product')
+    parser.add_argument('--length_variance', type = int, help = 'permitted variance in exon length (in amino acids)')
+    parser.add_argument('--strand', help = 'strand of expected feature')
+    parser.add_argument('--search_coords', default = None, help = 'subset of sequence within which to search')
+    parser.add_argument('--is_start', default = False, type = bool, help = 'Is this exon the first exon- i.e. should it start with atg instead of a splice site')
+    parser.add_argument('--is_stop', default = False, type = bool, help = 'Is this exon the last exon- i.e. should it start with a stop codon instead of a splice site')
+    parser.add_argument('--hmm_profile', default = None, help = "If provided, FindOrfs will search orfs against the provided\
+                        hmm profile and return the best hit")
+    
+    args = parser.parse_args()
+
     sequence = ""
     seqcounter = 0
     for line in open(args.sequence):

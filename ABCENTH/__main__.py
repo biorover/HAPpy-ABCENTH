@@ -288,7 +288,7 @@ def main():
         locus_dict[fields[1]][int(fields[8])] = fields
 
     #Imports genome to evaluate splice sites and reading frames
-    target_genome = genome.Genome(args.genome)
+    target_genome = genome.Genome(args.genome,truncate_names = True)
 
     #Here we go
     annotation_list = []

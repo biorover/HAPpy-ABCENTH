@@ -303,7 +303,7 @@ def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs
             decile_written.append(decile)
         file_root = ".".join(hmm.split('.')[:-1])
         if not genome_orfs:
-            subprocess.call(shlex.split(path_dict['thammerin'] + ' --frames_out '
+            subprocess.call(shlex.split('thammerin --frames_out '
                             + out_dir + "/genomeFrames.fa -e " + str(evalue) +
                             " -p " + hmm_dir + '/' + hmm + ' -n ' + target_file +
                             ' -f ' + path_dict['hmmsearch']),
@@ -311,7 +311,7 @@ def run_thammerin(hmm_dir,target_file,thmmerin_dir,threads,path_dict,genome_orfs
             genome_orfs = out_dir + '/genomeFrames.fa'
         else:
             threads_list.append(threading.Thread(target = subprocess.call,
-                                args = [shlex.split(path_dict['thammerin'] +
+                                args = [shlex.split('thammerin' +
                                 " -e " + str(evalue) +
                                 " -p " + hmm_dir + '/' + hmm + ' --frames_in ' + genome_orfs +
                                 ' -f ' + path_dict['hmmsearch'])],
@@ -873,7 +873,7 @@ def main():
                                                     args.threads,args.cutoff, path_dict,run_log)
             pickle.dump(clusters,open('_clusters.pkl','wb'))
             pickle.dump(prot_seq_dict,open('_psd.pkl','wb'))
-            subprocess.call(['python','/'.join(toolbox_for_HAP.__file__.split('/')[:-1]) + '/HAPpy-hiMem-client.py','output_fastas',args.search_mode,
+            subprocess.call(['python', '-m', 'HAPpy.HAPpy-hiMem-client.py','output_fastas',args.search_mode,
                           args.output_dir + '/clusters',str(args.ref_genome), str(args.annotations)])
             del clusters
             del prot_seq_dict
@@ -940,7 +940,7 @@ def main():
             stdout = open(args.output_dir + '/abcenth_filtered_hit_table.tsv','w'))
         subprocess.call(shlex.split('python -m ABCENTH.ParseHAPpyTable --hmm_dir '  + hmm_dir),
             stdout = open(args.output_dir + '/abcenth_cluster_info.tsv','w'))
-        subprocess.call(shlex.split('python -m ABCENTH --genome ' + args.target_genome + ' --table ' +
+        subprocess.call(shlex.split('ABCENTH --genome ' + args.target_genome + ' --table ' +
             args.output_dir + '/abcenth_filtered_hit_table.tsv --query_exon_info_table ' + args.output_dir + 
             '/abcenth_cluster_info.tsv'), stdout = open(args.output_dir + '/ABCENTH.gtf','w'))
         

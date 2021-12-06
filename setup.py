@@ -14,8 +14,8 @@ setup(
     entry_points = {
         'console_scripts': [
             'thammerin = HAPpy.thammerin:main',
-            'ABCENTH' = 'ABCENTH:main',
-            'HAPpy' = 'HAPpy:main'
+            'ABCENTH = ABCENTH:main',
+            'HAPpy = HAPpy:main'
         ]
     },
 )

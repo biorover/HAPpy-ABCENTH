@@ -55,7 +55,7 @@ def main():
 
     #sets up default program paths, overwritten by any program paths passes with -f or --program_filepaths
     hmmsearch = args.hmmsearch_filepath
-    target_nucdb = genome.Genome(args.target_nucdb)
+    target_nucdb = genome.Genome(args.target_nucdb,truncate_names = True)
 
     #Gets ORFs from the genome and hmmers them
 

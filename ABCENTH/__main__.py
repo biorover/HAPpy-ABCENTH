@@ -378,14 +378,14 @@ def main():
                 if strand == "+" and working_annotation == []:
                     working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,
                         qend,qlen,0,endphase,target_genome.genome_sequence,locus,is_start = True,nevermind_atg = True,
-                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file),
-                        full_pseudoexon_search = args.full_pseudoexon_search)
+                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file,
+                        full_pseudoexon_search = args.full_pseudoexon_search))
                     if_fail = "N"
                 else:
                     working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,
                         qend,qlen,startphase,endphase,target_genome.genome_sequence,locus,
-                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file),
-                        full_pseudoexon_search = args.full_pseudoexon_search)
+                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file,
+                        full_pseudoexon_search = args.full_pseudoexon_search))
                     if_fail = "C"
                 if len(working_annotation) < 2:
                     if working_annotation[0][2]:
@@ -411,8 +411,8 @@ def main():
                 if from_end != 0:
                     working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                         qlen,startphase,endphase,target_genome.genome_sequence,locus,
-                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file),
-                        full_pseudoexon_search = args.full_pseudoexon_search)
+                        cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file,
+                        full_pseudoexon_search = args.full_pseudoexon_search))
                     if from_start > last_from_start + 1 and recovered != True:
                         #need to adjust exon start to account for mis-matched phase
                         if working_annotation[-1][2]:
@@ -434,13 +434,13 @@ def main():
                     if strand == "+":
                         working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                             qlen,startphase,endphase,target_genome.genome_sequence,locus, is_stop = True,
-                            cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file),
-                            full_pseudoexon_search = args.full_pseudoexon_search)
+                            cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file,
+                            full_pseudoexon_search = args.full_pseudoexon_search))
                     elif strand == '-':
                         working_annotation.extend(exon_finder(min((tstart,tend)),max((tstart,tend)),strand,qstart,qend,
                             qlen,startphase,endphase,target_genome.genome_sequence,locus, is_start = True,
-                            cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file),
-                            full_pseudoexon_search = args.full_pseudoexon_search)
+                            cluster = working_name[0].split('coord')[0],exon_number = exon_num, log_file = log_file,
+                            full_pseudoexon_search = args.full_pseudoexon_search))
                     if from_start > last_from_start + 1 and not recovered == True:
                         #need to adjust exon start to account for mis-matched phase
                         if working_annotation[-1][2]:

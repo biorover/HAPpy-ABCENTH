@@ -21,7 +21,7 @@ def isyes(x):
 #The heart of gold of this program- the function to define an exon based on the coords and target phase
 def exon_finder(tstart,tend,strand,qstart,qend,qlen,qstartphase,qendphase,seqdict,seqname,
                 max_offset = 30, is_start = False, is_stop = False, nevermind_atg = False,
-                cluster = None,exon_number = None,log_file = open(os.devnull, 'w'),full_pseudoexon_search):
+                cluster = None,exon_number = None,log_file = open(os.devnull, 'w'),full_pseudoexon_search = True):
     """"finds exons with ORFs based on the requested parameters. Note that it is expected that tstart < tend, \
     even for minus strand features, so these might need to be reversed if coming from say tblastn. \
     Also coords are expected as 1-based (as output from blast), and are \

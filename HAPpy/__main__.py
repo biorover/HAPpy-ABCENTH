@@ -170,7 +170,7 @@ def args_check(args):
             sys.exit('Argument error: "--annotator ABCENTH" can only be used with "--search_mode exons" and the input options "--annotations" + "--ref_genome"')
 
 def translate_genome(genome_fasta,out_file,min_orf_size,max_orf_size):
-    target_nucdb = genome.Genome(genome_fasta)
+    target_nucdb = genome.Genome(genome_fasta, truncate_names = True)
     frame_fasta = open(out_file,'w')
     for seq_id in target_nucdb.genome_sequence:
         frameonef = genome.Sequence(target_nucdb.genome_sequence[seq_id])

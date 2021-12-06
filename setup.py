@@ -10,6 +10,7 @@ setup(
     install_requires=[
         'ete3',
         'numpy',
+        'intervaltree'
     ],
     entry_points = {
         'console_scripts': [

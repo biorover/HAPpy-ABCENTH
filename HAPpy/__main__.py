@@ -34,89 +34,6 @@ def happy_logo():
                              |/          \_/
 \n"""
 
-parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFormatter,
-                                 usage = "\npython HAP.py [optional arguments] --genome <genome.fa> " +
-                                 " > output.gtf\npython HAP.py [optional arguments] --genome <genome.fa> ".join([
-                                 "--annotations <ann.gtf> [ann2.gtf ...] --ref_genome <ref.fa> [ref2.fa ...]",
-                                 "--protein_seqs <proteins.fa>", "--hmm <proteins.hmm>", "--fasta_dir <fasta_directory/>",
-                                 "--alignment_dir <alignment_directory/>","--hmm_dir <hmm_directory/> [--augustus_profile_dir <prfl_directory>]"])
-                                 + ' > output.gtf',
-                                 description= happy_logo() + "Pipeline for annotating genes in a genome using homologous sequences \
-from a related species. \n\nProgram dependencies: \
-python, mafft, hmmer suite v3, ete3 python library, and genewise. \n\nHAP.py can \
-be run with a single set of related genes, multiple predefined clusters of \
-related genes, or it can build clusters from large highly divergent gene families. \
-HAP.py can take as input a gtf and genome from one or more related species, \
-an unaligned fasta file of query protein sequences, an HMM built from query \
-protein sequences using HMMER v3, or directories containing files corresponding to pre-defined \
-clusters of related genes- either as unaligned fasta files, protein sequence alignments, or HMMs.")
-
-manditory_args = parser.add_argument_group(title = 'mandatory arguments')
-query_args = parser.add_argument_group(title = "query arguments (at least one required)")
-addl_args = parser.add_argument_group(title = "additional HAP.py arguments")
-run_args = parser.add_argument_group(title = "client program arguments")
-manditory_args.add_argument('--genome',dest='target_genome', help = 'genome to be annotated')
-query_args.add_argument('--annotations', nargs = "*", default = None, help = 'One or more sets of annotations (in gtf format; requires "--ref_genome")')
-query_args.add_argument('--ref_genome', nargs = "*", default = None, help = 'One or more genomes of closely related species\
-                    (you should provide one genome for each gtf given for --annotations and ensure the order is the same; genomes should \
-                    be in fasta format)')
-query_args.add_argument('--thammerin_results', dest = 'thammerin_results', default = None, help = 'pre-computed thammerin results')
-query_args.add_argument('--protein_seqs', default = None,
-                    help = 'homologous protein sequences (can replace -a + -r for the "full_length" runmode)')
-query_args.add_argument('--hmm', default = None, help = "Protein HMM (built with HMMER v3 hmmbuild)")
-query_args.add_argument('--fasta_dir', default = None, help = 'Directory of UNALIGNED fasta files for predefined clusters')
-query_args.add_argument('--alignment_dir', default = None, help = 'Directory of ALIGNED fasta files for predefined clusters')
-query_args.add_argument('--hmm_dir', default = None, help = "Directory of HMM files for predefined clusters")
-query_args.add_argument('--hit_table', default = None, help = 'precomputed hit table')
-run_args.add_argument('--program_filepaths', default = None,
-                    help = 'optional comma seperated list of file paths for programs not in PATH variable, formated as "programName1=/path/to/program1,programName2=/path/to/program2"')
-addl_args.add_argument('--min_orf_size', default = 10, type = int,
-                    help = 'minimum size for orfs to be search by hmmsearch')
-addl_args.add_argument('--cutoff', default = 1.0, type = float,
-                    help = 'Distance cutoff for seperating proteins into clusters. Accepts values from zero to one, default = 1.0 (no breaking into clusters)')
-addl_args.add_argument('--threads', default = 1, type = int,
-                    help = "number of threads to be used with processes that support multithreading (mafft and thammerin)")
-addl_args.add_argument('--buffer', dest = 'buffer', default = 5000, type = int,
-                    help = 'buffer on either side of loci identified to feed into gene predictor (default = 5000)')
-addl_args.add_argument('--evalue', default = 0.01, type = float, help = 'Evalue cutoff for thammerin')
-addl_args.add_argument('--genome_orfs', default = None, help = 'ORFs file from previous thammerin run (saves about five minutes for insect-sized genomes)')
-addl_args.add_argument('--search_mode', default = 'fl', help = 'Search with full length sequences ("fl") or individual exons ("exons"). \
-                    Default = "fl". "exons" requires input in the form of --annotations + --ref_genome, and this option is required for \
-                    the "--annotator ABCENTH" option.')
-addl_args.add_argument('--annotator', default = "genewise", help = 'Program to use for building final annotations. Currently the options \
-                    are "genewise" (default) and "ABCENTH". I plan to add support for hint-guided AUGUSTUS at some point.')
-run_args.add_argument('--augustus_profile_dir', default = None, help = 'directory of augustus profiles corresponding to entries in "--hmm_dir" \
-                    (for optional use with "--hmm_dir <dir>" and "--annotator augustus")')
-run_args.add_argument('--augustus_species', default = 'fly', help = 'species name for augustus parameters (default = "fly")')
-addl_args.add_argument('--output_dir', default = 'HAPpy_results',help = 'folder to write results to (default = "HAPpy_results")')
-addl_args.add_argument('--overwrite', default = False, type = bool, help = 'overwrite specified output dir (default = False)')
-run_args.add_argument('--cluster_mafft_options', default = '--globalpair --maxiterate 1000', help = 'options for aligning sequences \
-                    within clusters using mafft (default = "--globalpair --maxiterate 1000")')
-addl_args.add_argument('--max_loci_per_cluster', default = float('inf') , type = float,
-                        help = 'maximum number of candidate loci to annotate per cluster (default = inf)')
-addl_args.add_argument('--max_intron_length', default = 20000,type = int, help = 'maximum length of potential introns (used to decide if hits from\
-                       the same cluster on the same sequence are a single locus or two seperate loci; default = 200000)')
-run_args.add_argument('--augustus_extrinsic', default = None, help = 'augustus extrinsic config file')
-run_args.add_argument('--augustus_hints', default = None, help = 'gff file of hints to pass to augustus for annotation')
-run_args.add_argument('--augustus_use_hmm_hints', default = True, help = 'Pass thmmerin hits to augustus for annotation')
-addl_args.add_argument('--initial_search_tool',default = 'thammerin',help = 'Search tool for initial identification of candidate loci. \
-                        Accepts "thammerin" (default) or "diamond".')
-run_args.add_argument('--diamond_options',default = "--very-sensitive", help = 'Additional arguments to pass to the diamond aligner (if using diamond instead of thammerin). \
-                      default = "--very-sensitive"')
-run_args.add_argument('--exonerate_options',default = '--model protein2genome --percent 10',
-                        help = 'Additional arguments to pass to exonerate protein2genome (if using exonerate for annotation). \
-                        default = "--model protein2genome --percent 10". For exhaustive exonerate annotation, we recomend "--model protein2genome:bestfit -E -S no --percent 20"')
-addl_args.add_argument('--cluster_filters',nargs = "*",default = None, help = 'prefilter for clusters before taking them forward in analysis (default = None). \
-                       provide space-seperated list of "param=value" Keys. Valid params: "min_num_species" (requires species prefix folowed by underscore in gene name), \
-                       "max_alignment_gap_percent" (for total alignment), "max_gaps_for_min_species" (min_num_species must also be set, at least min_num_species \
-                       must have no more than this percentage of gaps in alignment)')
-addl_args.add_argument('--extend_loci_with_alignments',default = "True",type = eval, help = 'if exonerate or genewise is run and augustus is to be run, use alignments from exonerate \
-                       and/or genewise to potentially extend candidate loci before running augustus (default = True)')
-addl_args.add_argument('--trim_neighboring_loci', default = "True", type = eval, help = 'Prevents augustus candidate gene prediction regions (candidate loci += buffer) from overlapping neighboring candidate loci (NB: buffers \
-                       can still overlap each other when True, core candidate loci still won\'t overlap if False) (default = True)')
-
-args = parser.parse_args()
-
 ####
 #
 # accessory functions for multithreading
@@ -849,6 +766,88 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
     err_log_file.close()
 
 def main(args):
+    parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFormatter,
+                                 usage = "\npython HAP.py [optional arguments] --genome <genome.fa> " +
+                                 " > output.gtf\npython HAP.py [optional arguments] --genome <genome.fa> ".join([
+                                 "--annotations <ann.gtf> [ann2.gtf ...] --ref_genome <ref.fa> [ref2.fa ...]",
+                                 "--protein_seqs <proteins.fa>", "--hmm <proteins.hmm>", "--fasta_dir <fasta_directory/>",
+                                 "--alignment_dir <alignment_directory/>","--hmm_dir <hmm_directory/> [--augustus_profile_dir <prfl_directory>]"])
+                                 + ' > output.gtf',
+                                 description= happy_logo() + "Pipeline for annotating genes in a genome using homologous sequences \
+    from a related species. \n\nProgram dependencies: \
+    python, mafft, hmmer suite v3, ete3 python library, and genewise. \n\nHAP.py can \
+    be run with a single set of related genes, multiple predefined clusters of \
+    related genes, or it can build clusters from large highly divergent gene families. \
+    HAP.py can take as input a gtf and genome from one or more related species, \
+    an unaligned fasta file of query protein sequences, an HMM built from query \
+    protein sequences using HMMER v3, or directories containing files corresponding to pre-defined \
+    clusters of related genes- either as unaligned fasta files, protein sequence alignments, or HMMs.")
+
+    manditory_args = parser.add_argument_group(title = 'mandatory arguments')
+    query_args = parser.add_argument_group(title = "query arguments (at least one required)")
+    addl_args = parser.add_argument_group(title = "additional HAP.py arguments")
+    run_args = parser.add_argument_group(title = "client program arguments")
+    manditory_args.add_argument('--genome',dest='target_genome', help = 'genome to be annotated')
+    query_args.add_argument('--annotations', nargs = "*", default = None, help = 'One or more sets of annotations (in gtf format; requires "--ref_genome")')
+    query_args.add_argument('--ref_genome', nargs = "*", default = None, help = 'One or more genomes of closely related species\
+                        (you should provide one genome for each gtf given for --annotations and ensure the order is the same; genomes should \
+                        be in fasta format)')
+    query_args.add_argument('--thammerin_results', dest = 'thammerin_results', default = None, help = 'pre-computed thammerin results')
+    query_args.add_argument('--protein_seqs', default = None,
+                        help = 'homologous protein sequences (can replace -a + -r for the "full_length" runmode)')
+    query_args.add_argument('--hmm', default = None, help = "Protein HMM (built with HMMER v3 hmmbuild)")
+    query_args.add_argument('--fasta_dir', default = None, help = 'Directory of UNALIGNED fasta files for predefined clusters')
+    query_args.add_argument('--alignment_dir', default = None, help = 'Directory of ALIGNED fasta files for predefined clusters')
+    query_args.add_argument('--hmm_dir', default = None, help = "Directory of HMM files for predefined clusters")
+    query_args.add_argument('--hit_table', default = None, help = 'precomputed hit table')
+    run_args.add_argument('--program_filepaths', default = None,
+                        help = 'optional comma seperated list of file paths for programs not in PATH variable, formated as "programName1=/path/to/program1,programName2=/path/to/program2"')
+    addl_args.add_argument('--min_orf_size', default = 10, type = int,
+                        help = 'minimum size for orfs to be search by hmmsearch')
+    addl_args.add_argument('--cutoff', default = 1.0, type = float,
+                        help = 'Distance cutoff for seperating proteins into clusters. Accepts values from zero to one, default = 1.0 (no breaking into clusters)')
+    addl_args.add_argument('--threads', default = 1, type = int,
+                        help = "number of threads to be used with processes that support multithreading (mafft and thammerin)")
+    addl_args.add_argument('--buffer', dest = 'buffer', default = 5000, type = int,
+                        help = 'buffer on either side of loci identified to feed into gene predictor (default = 5000)')
+    addl_args.add_argument('--evalue', default = 0.01, type = float, help = 'Evalue cutoff for thammerin')
+    addl_args.add_argument('--genome_orfs', default = None, help = 'ORFs file from previous thammerin run (saves about five minutes for insect-sized genomes)')
+    addl_args.add_argument('--search_mode', default = 'fl', help = 'Search with full length sequences ("fl") or individual exons ("exons"). \
+                        Default = "fl". "exons" requires input in the form of --annotations + --ref_genome, and this option is required for \
+                        the "--annotator ABCENTH" option.')
+    addl_args.add_argument('--annotator', default = "genewise", help = 'Program to use for building final annotations. Currently the options \
+                        are "genewise" (default) and "ABCENTH". I plan to add support for hint-guided AUGUSTUS at some point.')
+    run_args.add_argument('--augustus_profile_dir', default = None, help = 'directory of augustus profiles corresponding to entries in "--hmm_dir" \
+                        (for optional use with "--hmm_dir <dir>" and "--annotator augustus")')
+    run_args.add_argument('--augustus_species', default = 'fly', help = 'species name for augustus parameters (default = "fly")')
+    addl_args.add_argument('--output_dir', default = 'HAPpy_results',help = 'folder to write results to (default = "HAPpy_results")')
+    addl_args.add_argument('--overwrite', default = False, type = bool, help = 'overwrite specified output dir (default = False)')
+    run_args.add_argument('--cluster_mafft_options', default = '--globalpair --maxiterate 1000', help = 'options for aligning sequences \
+                        within clusters using mafft (default = "--globalpair --maxiterate 1000")')
+    addl_args.add_argument('--max_loci_per_cluster', default = float('inf') , type = float,
+                            help = 'maximum number of candidate loci to annotate per cluster (default = inf)')
+    addl_args.add_argument('--max_intron_length', default = 20000,type = int, help = 'maximum length of potential introns (used to decide if hits from\
+                        the same cluster on the same sequence are a single locus or two seperate loci; default = 200000)')
+    run_args.add_argument('--augustus_extrinsic', default = None, help = 'augustus extrinsic config file')
+    run_args.add_argument('--augustus_hints', default = None, help = 'gff file of hints to pass to augustus for annotation')
+    run_args.add_argument('--augustus_use_hmm_hints', default = True, help = 'Pass thmmerin hits to augustus for annotation')
+    addl_args.add_argument('--initial_search_tool',default = 'thammerin',help = 'Search tool for initial identification of candidate loci. \
+                            Accepts "thammerin" (default) or "diamond".')
+    run_args.add_argument('--diamond_options',default = "--very-sensitive", help = 'Additional arguments to pass to the diamond aligner (if using diamond instead of thammerin). \
+                        default = "--very-sensitive"')
+    run_args.add_argument('--exonerate_options',default = '--model protein2genome --percent 10',
+                            help = 'Additional arguments to pass to exonerate protein2genome (if using exonerate for annotation). \
+                            default = "--model protein2genome --percent 10". For exhaustive exonerate annotation, we recomend "--model protein2genome:bestfit -E -S no --percent 20"')
+    addl_args.add_argument('--cluster_filters',nargs = "*",default = None, help = 'prefilter for clusters before taking them forward in analysis (default = None). \
+                        provide space-seperated list of "param=value" Keys. Valid params: "min_num_species" (requires species prefix folowed by underscore in gene name), \
+                        "max_alignment_gap_percent" (for total alignment), "max_gaps_for_min_species" (min_num_species must also be set, at least min_num_species \
+                        must have no more than this percentage of gaps in alignment)')
+    addl_args.add_argument('--extend_loci_with_alignments',default = "True",type = eval, help = 'if exonerate or genewise is run and augustus is to be run, use alignments from exonerate \
+                        and/or genewise to potentially extend candidate loci before running augustus (default = True)')
+    addl_args.add_argument('--trim_neighboring_loci', default = "True", type = eval, help = 'Prevents augustus candidate gene prediction regions (candidate loci += buffer) from overlapping neighboring candidate loci (NB: buffers \
+                        can still overlap each other when True, core candidate loci still won\'t overlap if False) (default = True)')
+
+    args = parser.parse_args()
     sys.stderr.write(happy_logo())
     sys.stderr.write('called as "' + " ".join(sys.argv) + '"\n')
     path_dict = set_program_paths(args.program_filepaths)
@@ -999,7 +998,7 @@ def main(args):
             extrinsic_config_file,genewise,exonerate,path_dict,args.threads,hit_table,args.trim_neighboring_loci)
 
 if __name__ == "__main__":
-    main(args)
+    main()
 
 
 ####

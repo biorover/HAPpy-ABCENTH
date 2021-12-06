@@ -765,7 +765,7 @@ def annotate_with_augustus(genome_file,augustus_species,user_hints,profile_dir,h
     log_file.close()
     err_log_file.close()
 
-def main(args):
+def main():
     parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFormatter,
                                  usage = "\npython HAP.py [optional arguments] --genome <genome.fa> " +
                                  " > output.gtf\npython HAP.py [optional arguments] --genome <genome.fa> ".join([

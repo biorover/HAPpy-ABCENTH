@@ -8,7 +8,7 @@
 #soon- would it be too much to hope for that it will contain this function?
 
 import subprocess
-from HAPpy import genome_fork as genome
+from . import genome_fork as genome
 import argparse
 import os
 import tempfile
@@ -21,7 +21,7 @@ def main():
                                     to tHMMERn but does NOT infinge on the copyrights of HHMI (HMMER) or \
                                     NCBI (tblastn). \nWraps hmmsearch to give the user a crude ability to conduct \
                                     a HMMER search of a protein query against a nucleotide database. \n\nProgram\
-                                    dependencies:python (obviously), hmmer suite v3, and the genome_fork library from HAP.py. \n\
+                                    dependencies:python 3.6+, hmmer suite v3, and the genome_fork library from HAP.py. \n\
                                     Nota bene: for a 200 Mbp genome, building a database of translated sequences takes \
                                     ca. 5 minutes and running hmmsearch against this database takes ca. 5 seconds. Therefore \
                                     if you are going to run a search on the same genome multiple times it will GREATLY improve \

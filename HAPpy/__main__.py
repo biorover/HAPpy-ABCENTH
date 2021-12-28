@@ -817,9 +817,7 @@ def main():
                         the "--annotator ABCENTH" option.')
     addl_args.add_argument('--annotator', default = "genewise", help = 'Program to use for building final annotations. Currently the options \
                         are "genewise" (default) and "ABCENTH". I plan to add support for hint-guided AUGUSTUS at some point.')
-    run_args.add_argument('--ABCENTH_full_pseudoexon_search', default = True, help = 'Speficies whether ABCENTH should use genewise to \
-                          extend pseudogenized exon hits (default = True). Specifying "False" can substantially speed up ABCENTH on highly fragmented genome \
-                          at the expense of recovering slightly less sequence for pseudogenes (genes without frameshifts/internal stop codons are unaffected)')
+    run_args.add_argument('--ABCENTH_options', default = "", help = 'additional options to pass to ABCENTH (run "ABCENTH -h" to see options)')
     run_args.add_argument('--augustus_profile_dir', default = None, help = 'directory of augustus profiles corresponding to entries in "--hmm_dir" \
                         (for optional use with "--hmm_dir <dir>" and "--annotator augustus")')
     run_args.add_argument('--augustus_species', default = 'fly', help = 'species name for augustus parameters (default = "fly")')
@@ -945,7 +943,7 @@ def main():
             stdout = open(args.output_dir + '/abcenth_cluster_info.tsv','w'))
         subprocess.call(shlex.split('ABCENTH --genome ' + args.target_genome + ' --table ' +
             args.output_dir + '/abcenth_filtered_hit_table.tsv --query_exon_info_table ' + args.output_dir + 
-            '/abcenth_cluster_info.tsv --full_pseudoexon_search ' + str(args.ABCENTH_full_pseudoexon_search)), stdout = open(args.output_dir + '/ABCENTH.gtf','w'))
+            '/abcenth_cluster_info.tsv ' + str(args.ABCENTH_options)), stdout = open(args.output_dir + '/ABCENTH.gtf','w'))
         
     if 'genewise' in args.annotator:
         os.environ['WISECONFIGDIR'] = path_dict['program_dir'] + '/' + 'cfgFiles'

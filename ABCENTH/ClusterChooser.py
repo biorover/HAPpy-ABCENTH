@@ -4,7 +4,7 @@ import argparse,sys,os
 from intervaltree import IntervalTree
 import pandas as pd
 
-def chose_clusters(hittabm,maxintron = 10000):
+def chose_clusters(hittab,maxintron = 10000):
     """
     reads through a hit table to find best-scoring non-overlapping clusters of hits
     """

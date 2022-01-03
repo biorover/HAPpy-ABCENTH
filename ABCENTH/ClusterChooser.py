@@ -9,7 +9,7 @@ def generate_clusterdict(cluster_info_df):
     reads through cluster info and generates a dictionary of exon phases for each cluster
     """
     cdict = {}
-    cluster_info_df.columns = ['cluster','exon','exonN','sphase','ephase','qlen']
+    cluster_info_df.columns = ['cluster','exon','exonN','sphase','ephase','qlen','hmm']
     cdf = cluster_info_df.sort_values(['cluster','exon'])
     for index,row in cdf.iterrows():
         if not row['cluster'] in cdict:

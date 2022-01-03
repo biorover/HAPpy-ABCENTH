@@ -10,3 +10,4 @@ dependencies:
     - wise2
     - mafft=7.*
     - intervaltree
+    - pandas

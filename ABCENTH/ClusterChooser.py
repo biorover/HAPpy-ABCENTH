@@ -23,7 +23,7 @@ def chose_clusters(hittab,maxintron = 10000, criterion = 'matches'):
         for i,row in cdf.iterrows():
             start = min((row['sstart'],row['send']))
             end = max((row['sstart'],row['send']))
-            idb += row['qlen'] * row['pid']    
+            idb = row['qlen'] * row['pid']    
             if row['seqid'] == seqid and row['strand'] == strand and end - lastend < maxintron and \
                     ((strand == "+" and row['ei'] > ei) or (strand == '-' and row['ei'] < ei)):
                 loci[-1][3] = end

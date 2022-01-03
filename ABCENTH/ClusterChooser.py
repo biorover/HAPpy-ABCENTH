@@ -14,7 +14,7 @@ def generate_clusterdict(cluster_info_df):
     for index,row in cdf.iterrows():
         if not row['cluster'] in cdict:
             cdict[row['cluster']] = ""
-        cdict[row['cluster']] += str(row[sphase])
+        cdict[row['cluster']] += str(row['sphase'])
     return cdict
 
 def chose_clusters(hittab,cluster_dict,maxintron = 10000, criterion = 'matches'):

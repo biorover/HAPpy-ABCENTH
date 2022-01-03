@@ -81,7 +81,7 @@ def main():
 
     hittab = pd.read_csv(args.table,sep="\t",header=None)
     clustertab = pd.read_csv(args.cluster_info,sep='\t',header=None)
-    clusterdict = generate_cluster_dict(clustertab)
+    clusterdict = generate_clusterdict(clustertab)
     hittab = chose_clusters(hittab,clusterdict,args.max_intron,args.criterion)
     hittab.to_csv('/dev/stdout', sep = '\t', header = False, index = False)
 

@@ -53,7 +53,7 @@ def main():
     parser = argparse.ArgumentParser("ClusterChooser: reads through a hit table to find best-scoring non-overlapping clusters of hits")
     parser.add_argument('--table', help = 'abcenth format hit table')
     parser.add_argument('--max_intron', help = 'maximum intron size (default = 10000', default = 10000, type = int)
-    parser.add_argument('--criterion', help = 'criterion for cluster selection (can be matches (default) or score)', defualt = 'matches')
+    parser.add_argument('--criterion', help = 'criterion for cluster selection (can be matches (default) or score)', default = 'matches')
     args = parser.parse_args()
 
     hittab = pd.read_csv(args.table,sep="\t",header=None)

@@ -58,7 +58,7 @@ def chose_clusters(hittab,cluster_dict,maxintron = 10000, criterion = 'matches')
                     loci[-1][3] = end
                     locrowis[len(loci)][-1] == i
                 elif criterion == 'evalue' and row['evalue'] < laste:
-                    if row['evalue'] < < loci[-1][6]:
+                    if row['evalue'] < loci[-1][6]:
                         loci[-1][6] = row['evalue']
                     loci[-1][3] = end
                     locrowis[len(loci)][-1] == i

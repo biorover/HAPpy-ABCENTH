@@ -30,7 +30,7 @@ def chose_clusters(hittab,cluster_dict,maxintron = 10000, criterion = 'matches')
     seqs = list(set(hittab['seqid']))
     seqdict = {seq:IntervalTree() for seq in seqs}
     loci = []
-    cols = ['cluster','seqid','start','end','score','matches']
+    cols = ['cluster','seqid','start','end','score','matches','evalue']
     locrowis = {}
     for estruct in estructs:
         cdf = hittab.query('exonstructure == "' + estruct + '"')
@@ -39,27 +39,40 @@ def chose_clusters(hittab,cluster_dict,maxintron = 10000, criterion = 'matches')
             start = min((row['sstart'],row['send']))
             end = max((row['sstart'],row['send']))
             idb = row['qlen'] * row['pid']
-
             if row['seqid'] == seqid and row['strand'] == strand and end - lastend < maxintron and \
                     ((strand == "+" and row['ei'] > ei) or (strand == '-' and row['ei'] < ei)):
                 loci[-1][3] = end
                 loci[-1][4] += row['score']
                 loci[-1][5] += idb
+                if row['evalue'] < loci[-1][6]:
+                    loci[-1][6] = row['evalue']
                 locrowis[len(loci)].append(i)
             elif row['seqid'] == seqid and row['strand'] == strand and end - lastend < maxintron and \
                     row['ei'] == ei:
-                if lastscore < row['score']:
+                if lastscore < row['score'] and criterion == 'score':
                     loci[-1][4] += row['score'] - lastscore
+                    loci[-1][3] = end
+                    locrowis[len(loci)][-1] == i
+                elif criterion == 'matches' and idb < lastidb:
+                    loci[-1][5] += lastidb - idb
+                    loci[-1][3] = end
+                    locrowis[len(loci)][-1] == i
+                elif criterion == 'evalue' and row['evalue'] < laste:
+                    if row['evalue'] < < loci[-1][6]:
+                        loci[-1][6] = row['evalue']
                     loci[-1][3] = end
                     locrowis[len(loci)][-1] == i
             else:
                 loci.append([row['cluster'],row['seqid'],start,end,row['score'],idb])
                 locrowis[len(loci)] = [i]
-            strand,ei,seqid,lastend,lastscore = row['strand'],row['ei'],row['seqid'],end,row['score']
+            strand,ei,seqid,lastend,lastscore,laste,lastidb = row['strand'],row['ei'],row['seqid'],end,row['score'],row['evlaue'],idb
 
     locdf = pd.DataFrame(loci)
     locdf.columns = cols
-    locdf = locdf.sort_values(criterion,ascending = False)
+    if criterion == 'evalue':
+        locdf = locdf.sort_values(criterion,ascending = True)
+    else:
+        locdf = locdf.sort_values(criterion,ascending = False)
     keepis = []
     for index,row in locdf.iterrows():
         start = min((row['start'],row['end']))

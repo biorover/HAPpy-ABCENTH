@@ -63,7 +63,7 @@ def chose_clusters(hittab,cluster_dict,maxintron = 10000, criterion = 'matches')
                     loci[-1][3] = end
                     locrowis[len(loci)][-1] == i
             else:
-                loci.append([row['cluster'],row['seqid'],start,end,row['score'],idb])
+                loci.append([row['cluster'],row['seqid'],start,end,row['score'],idb,row['evalue']])
                 locrowis[len(loci)] = [i]
             strand,ei,seqid,lastend,lastscore,laste,lastidb = row['strand'],row['ei'],row['seqid'],end,row['score'],row['evalue'],idb
 

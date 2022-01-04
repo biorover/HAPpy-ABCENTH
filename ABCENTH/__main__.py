@@ -148,7 +148,7 @@ def exontuples2gff(exontuple_list,strand,feature_name,locus_name):
     problems = []
     is_pseudo = False
     for exontuple in exontuple_list:
-        outlines.append('\t'.join([locus_name,'ABCENTH','CDS',str(min(exontuple[:2])),str(max(exontuple[:2])),'.',strand,
+        outlines.append('\t'.join([locus_name,'ABCENTH','CDS',str(max((min(exontuple[:2]),1))),str(max(exontuple[:2])),'.',strand,
                                   '.','gene_id ' + feature_name + ';transcript_id ' + feature_name + '-RA']))
         if exontuple[2]:
             is_pseudo = True

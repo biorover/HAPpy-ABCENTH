@@ -13,4 +13,7 @@ log.info """\
                              | (         ) (
                              | )         | |
                              |/          \\_/
+You are running happy with the following parameters:
+aaseqs = ${params.aaseqs}
+outdir = ${params.outdir}
 """

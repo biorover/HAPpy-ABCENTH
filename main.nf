@@ -1,5 +1,5 @@
 params.aaseqs = "testdata/seqs.pep"
 params.outdir = "results"
-println """\
+log.info """\
 ${params.outdir}
 """

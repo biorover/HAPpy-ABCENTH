@@ -1,4 +1,4 @@
-params.aaseqs = "testdata/seqs.pep"
+params.aaseqs = "$baseDir/testdata/seqs.pep"
 params.outdir = "results"
 log.info """\
                 _______  _______                    _

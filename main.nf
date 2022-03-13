@@ -24,7 +24,7 @@ process mafftree {
     path aaseqs from params.aaseqs
      
     output:
-    path 'tree' into mafft_tree
+    path '$aaseqs.tree' into mafft_tree
 
     script:       
     """

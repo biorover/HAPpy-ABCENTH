@@ -1,5 +1,7 @@
 params.aaseqs = "$baseDir/testdata/seqs.pep"
 params.outdir = "results"
+nextflow.enable.dsl=2
+
 log.info """\
                 _______  _______                    _
     |\\     /|(  ___  )(  ____ )                  ( )

@@ -34,7 +34,7 @@ process mafftree {
     script:       
     """
     mafft --thread $task.cpus --treeout ${aaseqs}
-    mv ${aaseqs}.tree mafft_tree.tre
+    sed -e 's/[0-9]*_//' ${aaseqs}.tree > mafft_tree.tre
     """
 }
 

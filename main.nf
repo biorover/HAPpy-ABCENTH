@@ -28,12 +28,12 @@ process mafftree {
     path aaseqs 
      
     output:
-    path '${aaseqs}.tree' 
+    path 'mafft_tree.tre' 
 
     script:       
     """
     mafft --thread $task.cpus --treeout ${aaseqs}
-    #cp ${aaseqs}.tree tree
+    mv ${aaseqs}.tree mafft_tree.tree
     """
 }
 

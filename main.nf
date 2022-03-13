@@ -23,7 +23,7 @@ log.info """\
 process mafftree {
     
     input:
-    path aaseqs from params.aaseqs
+    path aaseqs 
      
     output:
     path 'tree' into mafft_tree

@@ -1,5 +1,6 @@
 params.aaseqs = "$baseDir/testdata/seqs.pep"
 params.outdir = "results"
+params.cluster_threshold = 0.5
 nextflow.enable.dsl=2
 
 log.info """\
@@ -37,7 +38,24 @@ process mafftree {
     """
 }
 
+process build_clusters {
+
+    input:
+    path tree,
+    path aaseqs
+
+    output:
+    path: cluster_dir
+
+    script:
+    """
+    MAGOT build-clusters ${tree} ${aaseqs} clusters ${params.cluster_threshold}
+    """
+}
+
+
 workflow {
     mafft_tree = mafftree(aaseqs)
+    cluster_dir = build_clusters(mafft_tree,aaseqs)
 
 }

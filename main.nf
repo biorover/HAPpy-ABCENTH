@@ -20,6 +20,8 @@ log.info """\
     outdir = ${params.outdir}
     """.stripIndent()
 
+aaseqs = Channel.fromPath( params.aaseqs, checkIfExists: true )
+
 process mafftree {
     
     input:
@@ -36,6 +38,6 @@ process mafftree {
 }
 
 workflow {
-    mafft_tree = mafftree(params.aaseqs)
+    mafft_tree = mafftree(aaseqs)
 
 }

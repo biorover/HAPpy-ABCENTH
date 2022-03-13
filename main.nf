@@ -26,7 +26,7 @@ process mafftree {
     path aaseqs 
      
     output:
-    path 'tree' into mafft_tree
+    path 'tree' 
 
     script:       
     """
@@ -36,6 +36,6 @@ process mafftree {
 }
 
 workflow {
-    mafftree(params.aaseqs)
+    mafft_tree = mafftree(params.aaseqs)
 
 }

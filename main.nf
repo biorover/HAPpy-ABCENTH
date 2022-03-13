@@ -28,7 +28,7 @@ process mafftree {
 
     script:       
     """
-    mafft --thread $task.cpus --treeout $aaseqs
-    cp $aaseqs.tree tree
+    mafft --thread $task.cpus --treeout ${aaseqs}
+    cp ${aaseqs}.tree tree
     """
 }

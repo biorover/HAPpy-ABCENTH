@@ -45,7 +45,7 @@ process build_clusters {
     path aaseqs
 
     output:
-    path 'cluster_dir'
+    path 'clusters'
 
     script:
     """

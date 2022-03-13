@@ -41,4 +41,3 @@ workflow {
     mafft_tree = mafftree(aaseqs)
 
 }
-mafft_tree.view()

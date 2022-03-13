@@ -28,6 +28,6 @@ process mafftree {
 
     script:       
     """
-    mafft --threads $task.cpus --treeout $aaseqs
+    mafft --thread $task.cpus --treeout $aaseqs
     """
 }

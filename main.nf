@@ -41,7 +41,7 @@ process mafftree {
 process build_clusters {
 
     input:
-    path tree,
+    path tree
     path aaseqs
 
     output:

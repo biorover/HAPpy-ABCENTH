@@ -34,3 +34,8 @@ process mafftree {
     cp ${aaseqs}.tree tree
     """
 }
+
+workflow {
+    mafftree(params.aaseqs)
+
+}

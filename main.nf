@@ -49,6 +49,7 @@ process build_clusters {
 
     script:
     """
+    mkdir clusters
     MAGOT build-clusters ${tree} ${aaseqs} clusters ${params.cluster_threshold}
     """
 }

@@ -33,7 +33,7 @@ process mafftree {
     script:       
     """
     mafft --thread $task.cpus --treeout ${aaseqs}
-    mv ${aaseqs}.tree mafft_tree.tree
+    mv ${aaseqs}.tree mafft_tree.tre
     """
 }
 
